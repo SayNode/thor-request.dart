@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -46,6 +47,7 @@ class Connect {
     return balance;
   }
 
+  ///[block] enter block id or number, [expanded] returned block data should be expanded
   Future<Map> getBlock({String block = 'best', bool expanded = false}) async {
     var headers = {
       'accept': 'application/json',
@@ -63,12 +65,15 @@ class Connect {
     return map;
   }
 
-  Future<BigInt> getChainTag() async {
+
+  ///returns chaintag
+  Future<int> getChainTag() async {
     var block = await getBlock(block: '0');
     String p = block['id'];
-    return BigInt.parse(p.substring(p.length - 2));
+    return int.parse(p.substring(p.length - 2), radix: 16);
   }
 
+  ///get transaction data of trnsaction with id [transactionId]
   Future<Map> getTransaction(String transactionId) async {
     var headers = {
       'accept': 'application/json',
@@ -82,6 +87,8 @@ class Connect {
     return output;
   }
 
+
+  ///post a new transaction with raw payload [raw]
   postTransaction(String raw) async {
     var headers = {
       'accept': 'application/json',
@@ -95,6 +102,8 @@ class Connect {
     }
   }
 
+
+    ///get transaction recipt of transaction with id [transactionId]
     Future<Map?> getTransactionReceipt(String transactionId) async {
     var headers = {
       'accept': 'application/json',
@@ -108,6 +117,8 @@ class Connect {
     return output;
   }
 
+
+  ///stream output of best block
   Stream<Map> ticker() async* {
     var i = 1;
     Map oldBlock = await getBlock();
@@ -117,10 +128,13 @@ class Connect {
         oldBlock = newBlock;
         yield newBlock;
       } else {
-        
+        sleep(const Duration(seconds: 1));
       }
       
     }
   }
+
+
+
 
 }
