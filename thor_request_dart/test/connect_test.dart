@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thor_request_dart/connect.dart';
 
-import 'package:thor_request_dart/thor_request_dart.dart';
-
 void main() {
   //TODO: Write real test
   test('get account', () async {

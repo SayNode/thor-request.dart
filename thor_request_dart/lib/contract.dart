@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:thor_devkit_dart/event.dart';
+import 'package:thor_devkit_dart/function.dart';
 import 'package:thor_devkit_dart/utils.dart';
 
 class Contract {
@@ -74,8 +76,29 @@ class Contract {
     return temp[0];
   }
 
-  
+  ThorFunction getFunctionByName(String name) {
+    var abi = getAbi(name);
+    return ThorFunction(json.encode(abi));
+  }
 
+  List<ThorEvent> getEvents() {
+    List<ThorEvent> output = [];
+    for (var item in getAbis()) {
+      if (item['type']== 'event') {
+        output.add(ThorEvent(json.encode(item)));
+      }
+    }
+    return output;
+  }
 
+  ThorEvent getEventBySignature(Uint8List sig) {
+    var events = getEvents();
+    for (var event in events) {
+      if (event.getSignature() == sig) {
+        return event;
+      }
+    }
+    throw Exception('No event with this signature found.');
 
+  }
 }
