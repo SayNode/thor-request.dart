@@ -2,6 +2,8 @@ name: thor_request_dart
 description: A new Flutter package project.
 version: 0.0.1
 homepage:
+#TODO: remove this
+publish_to: none
 
 environment:
   sdk: ">=2.16.1 <3.0.0"
@@ -11,6 +13,13 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^0.13.4
+
+
+  #thor devkit dependencies
+  pointycastle: ^3.5.2
+  thor_devkit_dart:
+    path: C:/Users/SayNode/Documents/GitHub/thor-devkit.dart/thor_devkit_dart
+
 
 dev_dependencies:
   flutter_test:
