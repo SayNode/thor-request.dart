@@ -42,4 +42,11 @@ void main() {
     expect(a, 39);
   });
 
+
+//TODO: figure out how to test this
+    test('ticker test', () async {
+    Connect connect = Connect('https://testnet.veblocks.net');
+  
+  });
+
 }

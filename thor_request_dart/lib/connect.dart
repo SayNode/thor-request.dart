@@ -65,7 +65,6 @@ class Connect {
     return map;
   }
 
-
   ///returns chaintag
   Future<int> getChainTag() async {
     var block = await getBlock(block: '0');
@@ -87,7 +86,6 @@ class Connect {
     return output;
   }
 
-
   ///post a new transaction with raw payload [raw]
   postTransaction(String raw) async {
     var headers = {
@@ -102,9 +100,8 @@ class Connect {
     }
   }
 
-
-    ///get transaction recipt of transaction with id [transactionId]
-    Future<Map?> getTransactionReceipt(String transactionId) async {
+  ///get transaction recipt of transaction with id [transactionId]
+  Future<Map?> getTransactionReceipt(String transactionId) async {
     var headers = {
       'accept': 'application/json',
     };
@@ -116,7 +113,6 @@ class Connect {
     Map output = jsonDecode(res.body);
     return output;
   }
-
 
   ///stream output of best block
   Stream<Map> ticker() async* {
@@ -130,18 +126,21 @@ class Connect {
       } else {
         sleep(const Duration(seconds: 1));
       }
-      
     }
   }
 
+  Future<List<Map>> emulate(Map body, {String block = 'best'}) async {
+    //TODO: check if this url is correct
+    var u = Uri.parse('$url/accounts/*?revision=$block');
+    var headers = {
+      "accept": "application/json",
+      "Content-Type": "application/json"
+    };
+    var res = await http.post(u, headers: headers, body: body);
+    if (res.statusCode == 200) {
+      throw Exception("HTTP error: ${res.statusCode} ${res.reasonPhrase}");
+    }
 
-
-
-
-
-
-
-
+    //TODO: fill rest of methode
+  }
 }
-
-//Map _beautify 
