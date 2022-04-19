@@ -24,7 +24,6 @@ class Contract {
     return Contract(json.decode(jsonString));
   }
 
-//TODO: frag reni about contrct format
   ///Get the smart contract Name or null
   String? getContractName() {
     //old style json
@@ -54,7 +53,12 @@ class Contract {
 
   ///Get list of ABIs of this contract
   List<Map> getAbis() {
-    return contractMeta['abi'];
+    List<Map> out = [];
+    for (var item in contractMeta['abi']) {
+      out.add(item as Map);
+    }
+
+    return out;
   }
 
   ///Get ABI by [name]. Throws exception if no abi with this name exists for this contract
@@ -84,7 +88,7 @@ class Contract {
   List<ThorEvent> getEvents() {
     List<ThorEvent> output = [];
     for (var item in getAbis()) {
-      if (item['type']== 'event') {
+      if (item['type'] == 'event') {
         output.add(ThorEvent(json.encode(item)));
       }
     }
@@ -99,6 +103,5 @@ class Contract {
       }
     }
     throw Exception('No event with this signature found.');
-
   }
 }

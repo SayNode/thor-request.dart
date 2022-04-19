@@ -13,6 +13,7 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^0.13.4
+  nock: ^1.2.0
 
 
   #thor devkit dependencies

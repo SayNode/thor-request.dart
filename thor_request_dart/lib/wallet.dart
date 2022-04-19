@@ -20,8 +20,9 @@ class Wallet {
     }
 
     pub = secp256k1.derivePublicKey(bytesToInt(priv), false);
-    adressBytes = publicKeyToAddressBytes(pub);
-    adressString = publicKeyToAddressString(pub);
+    adressBytes = Address.publicKeyToAddressBytes(pub);
+    adressString = Address.publicKeyToAddressString(pub);
+    
   }
 
   ///Generate Wallet from Mnemonic phrase
@@ -37,8 +38,9 @@ class Wallet {
   ///Generate Wallet from [keyStore]
   ///[keyStore] is a jsonString
   static Wallet fromKeystore(String keyStore, String password) {
-    var priv = KeyStore().decrypt(keyStore, password);
+    var priv = Keystore.decrypt(keyStore, password);
     return Wallet(priv);
+    
   }
 
   ///create new wallet from scratch

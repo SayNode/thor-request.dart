@@ -1,4 +1,4 @@
-import 'package:thor_devkit_dart/function.dart';
+
 import 'package:thor_request_dart/contract.dart';
 
 class Clause {
