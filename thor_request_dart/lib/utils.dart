@@ -4,8 +4,10 @@ import 'dart:typed_data';
 
 import 'package:thor_devkit_dart/crypto/address.dart';
 import 'package:thor_devkit_dart/function.dart';
+import 'package:thor_devkit_dart/transaction.dart';
 import 'package:thor_devkit_dart/utils.dart';
 import 'package:thor_request_dart/contract.dart';
+import 'package:thor_request_dart/wallet.dart';
 
 Map injectRevertReason(Map emulateResponse) {
   if (emulateResponse["reverted"] == true && emulateResponse["data"] != "0x") {
@@ -42,7 +44,7 @@ Map calcEmulateTxBody(String caller, Map txBody, {String? gaspayer}) {
   };
 
   // Set gas field only when the txBody set it.
-  if (int.parse(txBody["gas"]) > 0) {
+  if (txBody["gas"] > 0) {
     eTxBody["gas"] = txBody["gas"];
   }
 
@@ -60,7 +62,7 @@ Map calcEmulateTxBody(String caller, Map txBody, {String? gaspayer}) {
 ///Clause should confine to "thor_devkit.transaction.CLAUSE" schema. {to, value, data}
 /// Tx body shall confine to "thor_devkit.transaction.BODY" schema.
 
-Map build_tx_body(List clauses, int chainTag, String blockRef, BigInt nonce,
+Map build_tx_body(List clauses, int chainTag, String blockRef, int nonce,
     {int expiration = 32,
     int gasPriceCoef = 0,
     int gas = 0,
@@ -72,7 +74,7 @@ Map build_tx_body(List clauses, int chainTag, String blockRef, BigInt nonce,
     "expiration": expiration,
     "clauses": clauses,
     "gasPriceCoef": gasPriceCoef,
-    "gas": gas.toString(),
+    "gas": gas,
     "dependsOn": dependsOn,
     "nonce": nonce,
   };
@@ -93,14 +95,14 @@ String calc_blockRef(String block_id) {
 }
 
 ///Calculate a random number for nonce
-BigInt calc_nonce() {
+int calc_nonce() {
   final random = Random.secure();
   final builder = BytesBuilder();
   for (var i = 0; i < 8; ++i) {
     builder.addByte(random.nextInt(256));
   }
   final bytes = builder.toBytes();
-  return bytesToInt(bytes);
+  return bytesToInt(bytes).toInt();
 }
 
 ///If a single clause emulation is failed
@@ -150,3 +152,75 @@ Map inject_decoded_event(Map event_dict, Contract contract) {
   event_dict["name"] = e_obj.event.name;
   return event_dict;
 }
+
+///Extract vm gases from a batch of emulated executions.
+List<int> read_vm_gases(List emulatedResponses) {
+  List<int> results = [];
+  for (var item in emulatedResponses) {
+    results.add(int.parse(item["gasUsed"]));
+  }
+
+  return results;
+}
+
+///Calculate the suggested gas for a transaction
+int suggest_gas_for_tx(int vmGas, Map txBody) {
+  var intrincisGas = txBody['gas'];
+  var supposedSafeGas = calcGas(vmGas, intrincisGas);
+  return supposedSafeGas;
+}
+
+///Calculate recommended (safe) gas
+int calcGas(int vmGas, int intrinsicGas) {
+  return vmGas + intrinsicGas + 15000;
+}
+
+///Build signed transaction from tx body
+Transaction calcTxSigned(Wallet wallet, Map txBody) {
+  print(txBody);
+  Transaction tx = Transaction.fromJsonString(json.encode(txBody));
+  var message_hash = tx.getSigningHash(null);
+  var signature = wallet.sign(message_hash);
+  tx.signature = signature;
+  return tx;
+}
+
+///Build signed transaction from tx body
+String calcTxSignedEncoded(Wallet wallet, Map txBody) {
+  var tx = calcTxSigned(wallet, txBody);
+
+  var txBytes = tx.encode();
+  var txHex = bytesToHex(txBytes);
+  String txEncoded = '0x' + txHex;
+  return txEncoded;
+}
+
+Transaction calc_tx_signed_with_fee_delegation(
+    Wallet caller, Wallet payer, Map tx_body) {
+  Transaction tx = Transaction.fromJsonString(json.encode(tx_body));
+  assert(tx.isDelegated() == true);
+
+  var callerHash = tx.getSigningHash(null);
+  var payerHash = tx.getSigningHash(caller.adressString.toLowerCase());
+
+  var finalSig = caller.sign(callerHash) + payer.sign(payerHash);
+
+  tx.signature = Uint8List.fromList(finalSig);
+
+  assert(tx.getOriginAsAddressString()!.toLowerCase() ==
+      caller.adressString.toLowerCase());
+  assert(tx.getDelegatorAsAddressString()!.toLowerCase() ==
+      payer.adressString.toLowerCase());
+
+  return tx;
+}
+
+//TODO: return proper encoded data
+///ABI encode params according to types
+Uint8List buildParams(List<String> types, List args){
+return Uint8List.fromList([]);
+}
+
+
+    
+    

@@ -12,10 +12,8 @@ class Clause {
       {this.contract,
       this.functionName,
       List? functionParameters,
-      BigInt? value}) {
-    if (value == null) {
-      this.value = BigInt.zero;
-    }
+      int value = 0}) {
+
     isCall = contract != null && functionName != null;
 
     if (isCall) {

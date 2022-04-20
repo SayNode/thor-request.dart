@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:thor_devkit_dart/utils.dart';
 import 'package:thor_request_dart/connect.dart';
 import 'package:nock/nock.dart';
+import 'package:thor_request_dart/wallet.dart';
 
 void main() {
 //setup fake http requests
@@ -116,4 +118,7 @@ void main() {
   test('ticker test', () async {
     Connect connect = Connect('https://testnet.veblocks.net');
   });
+
+  
+
 }

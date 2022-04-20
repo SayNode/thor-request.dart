@@ -54,8 +54,11 @@ class Wallet {
     return sig.serialize();
   }
 
+
+  ///verify if the signature [sig] and message hash [msgHash] were signed by the privte key of this wallet
   bool verifySignature(Uint8List msgHash, Uint8List sig) {
     var pub = secp256k1.recover(msgHash, ThorSignature.fromBytes(sig));
-    return this.pub == pub;
+
+    return bytesToInt(this.pub).compareTo(bytesToInt(pub)) == 0;
   }
 }
