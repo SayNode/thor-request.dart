@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
-
 import 'package:thor_devkit_dart/crypto/address.dart';
-import 'package:thor_devkit_dart/function.dart';
+import 'package:thor_devkit_dart/crypto/blake2b.dart';
+import 'package:thor_devkit_dart/crypto/secp256k1.dart';
 import 'package:thor_devkit_dart/transaction.dart';
+import 'package:thor_devkit_dart/types/clause.dart';
+import 'package:thor_devkit_dart/types/reserved.dart';
 import 'package:thor_devkit_dart/utils.dart';
 import 'package:thor_request_dart/contract.dart';
 import 'package:thor_request_dart/wallet.dart';
@@ -29,11 +31,18 @@ Map calcEmulateTxBody(String caller, Map txBody, {String? gaspayer}) {
   //Caution: in emulation, clauses.clause.value must be of type string
   var eClauses = [];
   for (var clause in txBody['clauses']) {
-    eClauses.add({
-      'to': clause['to'],
-      'value': clause['value'].toString(),
-      'data': clause['data']
-    });
+    if (clause is String) {
+      var c = json.decode(clause);
+
+      eClauses.add(
+          {'to': c['to'], 'value': c['value'].toString(), 'data': c['data']});
+    } else {
+      eClauses.add({
+        'to': clause['to'],
+        'value': clause['value'].toString(),
+        'data': clause['data']
+      });
+    }
   }
 
   var eTxBody = {
@@ -62,7 +71,7 @@ Map calcEmulateTxBody(String caller, Map txBody, {String? gaspayer}) {
 ///Clause should confine to "thor_devkit.transaction.CLAUSE" schema. {to, value, data}
 /// Tx body shall confine to "thor_devkit.transaction.BODY" schema.
 
-Map build_tx_body(List clauses, int chainTag, String blockRef, int nonce,
+Map buildTxBody(List clauses, int chainTag, String blockRef, int nonce,
     {int expiration = 32,
     int gasPriceCoef = 0,
     int gas = 0,
@@ -83,6 +92,33 @@ Map build_tx_body(List clauses, int chainTag, String blockRef, int nonce,
   }
 
   return body;
+}
+
+Transaction buildTransaction(
+    List<Clause> clauses, int chainTag, String blockRef, int nonce,
+    {int expiration = 32,
+    int gasPriceCoef = 0,
+    int gas = 0,
+    String? dependsOn,
+    bool feeDelegation = false}) {
+  Reserved reserved;
+  if (!feeDelegation) {
+    reserved = Reserved.getNullReserved();
+  } else {
+    reserved = Reserved(1, []);
+  }
+  Transaction tx = Transaction(
+      chainTag,
+      blockRef,
+      expiration.toRadixString(10),
+      clauses,
+      gasPriceCoef.toRadixString(10),
+      gas.toRadixString(10),
+      dependsOn,
+      nonce.toRadixString(10),
+      reserved);
+
+  return tx;
 }
 
 ///Calculate a blockRef from a given block_id, id should starts with 0x
@@ -156,8 +192,13 @@ Map inject_decoded_event(Map event_dict, Contract contract) {
 ///Extract vm gases from a batch of emulated executions.
 List<int> read_vm_gases(List emulatedResponses) {
   List<int> results = [];
+  print(emulatedResponses);
   for (var item in emulatedResponses) {
-    results.add(int.parse(item["gasUsed"]));
+    if (item["gasUsed"] is int) {
+      results.add(item["gasUsed"]);
+    } else {
+      results.add(int.parse(item["gasUsed"]));
+    }
   }
 
   return results;
@@ -165,7 +206,8 @@ List<int> read_vm_gases(List emulatedResponses) {
 
 ///Calculate the suggested gas for a transaction
 int suggest_gas_for_tx(int vmGas, Map txBody) {
-  var intrincisGas = txBody['gas'];
+  Transaction tx = Transaction.fromJsonString(json.encode(txBody));
+  var intrincisGas = tx.getIntrinsicGas();
   var supposedSafeGas = calcGas(vmGas, intrincisGas);
   return supposedSafeGas;
 }
@@ -179,9 +221,11 @@ int calcGas(int vmGas, int intrinsicGas) {
 Transaction calcTxSigned(Wallet wallet, Map txBody) {
   print(txBody);
   Transaction tx = Transaction.fromJsonString(json.encode(txBody));
-  var message_hash = tx.getSigningHash(null);
-  var signature = wallet.sign(message_hash);
-  tx.signature = signature;
+  //var message_hash = tx.getSigningHash(null);
+  var msgHash = blake2b256([tx.encode()]);
+  //var signature = wallet.sign(msgHash);
+  Uint8List sig = sign(msgHash, wallet.priv).serialize();
+  tx.signature = sig;
   return tx;
 }
 
@@ -217,10 +261,6 @@ Transaction calc_tx_signed_with_fee_delegation(
 
 //TODO: return proper encoded data
 ///ABI encode params according to types
-Uint8List buildParams(List<String> types, List args){
-return Uint8List.fromList([]);
+Uint8List buildParams(List<String> types, List args) {
+  return Uint8List.fromList([]);
 }
-
-
-    
-    

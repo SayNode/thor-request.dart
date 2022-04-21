@@ -1,33 +1,30 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:thor_devkit_dart/crypto/address.dart';
+import 'package:thor_devkit_dart/crypto/blake2b.dart';
+import 'package:thor_devkit_dart/crypto/secp256k1.dart';
+import 'package:thor_devkit_dart/crypto/thor_signature.dart';
 import 'package:thor_devkit_dart/transaction.dart';
 import 'package:thor_devkit_dart/types/clause.dart';
-import 'package:thor_devkit_dart/types/rlp.dart';
 import 'package:thor_devkit_dart/utils.dart';
 import 'package:thor_request_dart/connect.dart';
 import 'package:thor_request_dart/contract.dart';
 import 'package:thor_request_dart/wallet.dart';
-import 'package:web3dart/contracts.dart';
 
 void main() {
-  //TODO:write proper test
   test('emulate', () async {
     Connect connect = Connect('https://testnet.veblocks.net');
-    Map b = json.decode(File(
-            "C:/Users/SayNode/Documents/GitHub/thor-request.dart/thor_request_dart/test/json/tx.json")
-        .readAsStringSync());
+    Map b = json.decode(File("assets/json_test/tx.json").readAsStringSync());
     var a = await connect.emulate(b);
-    print(a);
+    expect(json.encode(a),
+        '[{"data":"0x","events":[],"transfers":[],"gasUsed":0,"reverted":false,"vmError":""}]');
   });
 
   test('replayTx with reason', () async {
     Connect connect = Connect('https://testnet.veblocks.net');
-    Map b = json.decode(File(
-            "C:/Users/SayNode/Documents/GitHub/thor-request.dart/thor_request_dart/test/json/tx.json")
-        .readAsStringSync());
+    Map b = json.decode(File("assets/json_test/tx.json").readAsStringSync());
 
     var a = await connect.replayTx(
         "0x1d05a502db56ba46ccd258a5696b9b78cd83de6d0d67f22b297f37e710a72bb5");
@@ -35,31 +32,44 @@ void main() {
   });
 
   test('emulte transaction', () async {
-    Map txBody = json.decode(File(
-            "C:/Users/SayNode/Documents/GitHub/thor-request.dart/thor_request_dart/test/json/tx.json")
-        .readAsStringSync());
+    Map txBody =
+        json.decode(File("assets/json_test/tx.json").readAsStringSync());
     Connect connect = Connect('https://testnet.veblocks.net');
     var a = await connect.emulateTx(
         '0x5034aa590125b64023a0262112b98d72e3c8e40e', txBody);
-    print(a);
+    Map matcher = {
+      'data': '0x',
+      'events': [],
+      'transfers': [],
+      'gasUsed': 0,
+      'reverted': false,
+      'vmError': ''
+    };
+    expect(a, [matcher]);
   });
 
   test('call', () async {
-    Map contractMeta = json.decode(File(
-            "C:/Users/SayNode/Documents/GitHub/thor-request.dart/thor_request_dart/test/json/VVET9.json")
-        .readAsStringSync());
+    Map contractMeta =
+        json.decode(File("assets/json_test/VVET9.json").readAsStringSync());
     Connect connect = Connect('https://testnet.veblocks.net');
     Contract contract = Contract(contractMeta);
 
     var a = await connect.call('0x7567d83b7b8d80addcb281a71d54fc7b3364ffed',
         contract, 'deposit', [], '0x5034aa590125b64023a0262112b98d72e3c8e40e');
-    print(a);
+    Map matcher = {
+      'data': '0x',
+      'events': [],
+      'transfers': [],
+      'gasUsed': 0,
+      'reverted': false,
+      'vmError': ''
+    };
+    expect(a, matcher);
   });
 
   test('call address input', () async {
-    Map contractMeta = json.decode(File(
-            "C:/Users/SayNode/Documents/GitHub/thor-request.dart/thor_request_dart/test/json/VVET9.json")
-        .readAsStringSync());
+    Map contractMeta =
+        json.decode(File("assets/json_test/VVET9.json").readAsStringSync());
     Connect connect = Connect('https://testnet.veblocks.net');
     Contract contract = Contract(contractMeta);
 
@@ -72,23 +82,47 @@ void main() {
     print(a);
   });
 
-  test('post', () async {
-    Map contractMeta = json.decode(File(
-            "C:/Users/SayNode/Documents/GitHub/thor-request.dart/thor_request_dart/test/json/VVET9.json")
-        .readAsStringSync());
+  test('post transaction', () async {
+    List<Clause> clauses = [
+      Clause("0x0000000000000000000000000000000000000000",
+          "1000000000000000000", "0x"),
+    ];
+    Transaction tx = Transaction(39, "0x00634b0a00639801", "72000000", clauses,
+        "0", "21000", null, "12345678", null);
+    Uint8List privateKey = hexToBytes(
+        "7582be841ca040aa940fff6c05773129e135623e41acce3e0b8ba520dc1ae26a");
+    Uint8List h = blake2b256([tx.encode()]);
+    Uint8List sig = sign(h, privateKey).serialize();
+    tx.signature = sig;
+    String raw = '0x' + bytesToHex(tx.encode());
     Connect connect = Connect('https://testnet.veblocks.net');
-var ct = "ba";
-    var raw =
-        "0xf86981$ct" + "800adad994000000000000000000000000000000000000746f82271080018252088001c0b8414792c9439594098323900e6470742cd877ec9f9906bca05510e421f3b013ed221324e77ca10d3466b32b1800c72e12719b213f1d4c370305399dd27af962626400";
-
-    var a = await connect.postTransaction(raw);
-    print(a);
+   // var a = await connect.postTransaction(raw);
+    //print(a);
   });
 
-    test('transfer VET test', () async {
+  test('transfer VET test', () async {
     Connect connect = Connect('https://testnet.veblocks.net');
-    Wallet wallet = Wallet(hexToBytes('27196338e7d0b5e7bf1be1c0327c53a244a18ef0b102976980e341500f492425'));
-    print(await connect.transferVet(wallet, '0x5034aa590125b64023a0262112b98d72e3c8e40e'));
+    Wallet wallet = Wallet(hexToBytes(
+        '7582be841ca040aa940fff6c05773129e135623e41acce3e0b8ba520dc1ae26a'));
+    print(await connect.transferVet(
+        wallet, '0x5034aa590125b64023a0262112b98d72e3c8e40e', value: BigInt.parse('37000000000000000000')),); 
   });
-
+  test('transfer VTHO test', () async {
+    Connect connect = Connect('https://testnet.veblocks.net');
+    Wallet wallet = Wallet(hexToBytes(
+        '27196338e7d0b5e7bf1be1c0327c53a244a18ef0b102976980e341500f492425'));
+    print(await connect.transferVtho(
+        wallet, '0x5034aa590125b64023a0262112b98d72e3c8e40e'));
+  });
+  test('transfer Token test', () async {
+    Connect connect = Connect('https://testnet.veblocks.net');
+    Wallet wallet = Wallet(hexToBytes(
+        '27196338e7d0b5e7bf1be1c0327c53a244a18ef0b102976980e341500f492425'));
+    print(await connect.transferToken(
+        wallet,
+        '0x5034aa590125b64023a0262112b98d72e3c8e40e',
+        '0x5034aa590125b64023a0262112b98d72e3c8e40e'));
+  });
 }
+
+

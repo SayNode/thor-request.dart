@@ -1,5 +1,6 @@
-
+import 'package:thor_devkit_dart/utils.dart';
 import 'package:thor_request_dart/contract.dart';
+import 'package:thor_devkit_dart/types/clause.dart' as dev;
 
 class Clause {
   late Map clause;
@@ -12,8 +13,8 @@ class Clause {
       {this.contract,
       this.functionName,
       List? functionParameters,
-      int value = 0}) {
-
+      BigInt? value}) {
+    value ??= BigInt.zero;
     isCall = contract != null && functionName != null;
 
     if (isCall) {
@@ -22,9 +23,18 @@ class Clause {
       //FIXME: can functionParameters be null?
       var data = f.encode(functionParameters!);
 
-      clause = {"to": to, "value": value.toString(), "data": data};
+      clause = {
+        "to": to,
+        "value": value.toString(),
+        "data": "0x" + bytesToHex(data)
+      };
     } else {
       clause = {"to": to, "value": value.toString(), "data": "0x"};
     }
+  }
+
+  dev.Clause getDevClause() {
+    var c = dev.Clause(clause['to'], clause['value'], clause['data']);
+    return c;
   }
 }

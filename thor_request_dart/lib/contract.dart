@@ -82,6 +82,9 @@ class Contract {
 
   ThorFunction getFunctionByName(String name) {
     var abi = getAbi(name);
+    if (abi['type'] != 'function') {
+      throw Exception('ABI with name $name is not a function');
+    }
     return ThorFunction(json.encode(abi));
   }
 

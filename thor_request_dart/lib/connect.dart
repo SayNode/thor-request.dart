@@ -1,8 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:collection/collection.dart';
 import 'package:http/http.dart' as http;
+import 'package:thor_devkit_dart/crypto/blake2b.dart';
+import 'package:thor_devkit_dart/crypto/secp256k1.dart';
+import 'package:thor_devkit_dart/transaction.dart';
 import 'package:thor_devkit_dart/utils.dart';
+import 'package:thor_devkit_dart/types/clause.dart' as dev;
 import 'package:thor_request_dart/clause.dart';
 import 'package:thor_request_dart/contract.dart';
 import 'package:thor_request_dart/utils.dart';
@@ -185,10 +190,10 @@ class Connect {
     return emulate(emulateBody, block: targetBlock);
   }
 
-  ///Emulate the execution of a transaction.[adress] address of caller, [tx_body] Tx body to be emulated, [block] Target at which block? by default "best",
-  Future<List<Map>> emulateTx(String address, Map tx_body,
-      {String block = "best", String? gas_payer}) {
-    Map emulate_body = calcEmulateTxBody(address, tx_body, gaspayer: gas_payer);
+  ///Emulate the execution of a transaction.[adress] address of caller, [txBody] Tx body to be emulated, [block] Target at which block? by default "best",
+  Future<List<Map>> emulateTx(String address, Map txBody,
+      {String block = "best", String? gasPayer}) {
+    Map emulate_body = calcEmulateTxBody(address, txBody, gaspayer: gasPayer);
     return emulate(emulate_body, block: block);
   }
 
@@ -198,26 +203,26 @@ class Connect {
   /// Build a clause according to the function name and params.
   /// raise Exception when function is not found by name.
   ///2) Pure transfer of VET
-  ///Set the contract, func_name, and func_params to None
+  ///Set the contract, func_name, and funcParams to None
   ///Parameters
   ///----------
   ///contract : Contract
   /// On which contract the function is sitting.
   ///func_name : str
   ///Name of the function.
-  ///func_params : List
+  ///funcParams : List
   ///Function params supplied by users.
   ///to : str
   ///Address of the contract.
   ///value : int, optional
   ///VET sent with the clause in Wei, by default 0
-  Clause clause(
-      Contract contract, String func_name, List func_params, String to,
-      {int value = 0}) {
+  Clause clause(Contract contract, String func_name, List funcParams, String to,
+      {BigInt? value}) {
+    value ??= BigInt.zero;
     return Clause(to,
         contract: contract,
         functionName: func_name,
-        functionParameters: func_params,
+        functionParameters: funcParams,
         value: value);
   }
 
@@ -228,26 +233,25 @@ class Connect {
   ///If function has any return value, it will be included in "decoded" field
 
   Future<Map> call(String caller, Contract contract, String func_name,
-      List func_params, String to,
-      {int value = 0,
+      List funcParams, String to,
+      {BigInt? value,
       int gas = 0, // Note: value is in Wei
-      String? gas_payer, // Note: gas payer of the tx
+      String? gasPayer, // Note: gas payer of the tx
       String block = "best" // Target at which block
       }) async {
     // Get the Clause object
-    var clause =
-        this.clause(contract, func_name, func_params, to, value: value);
+    var clause = this.clause(contract, func_name, funcParams, to, value: value);
     // Build tx body
-    var need_fee_delegation = gas_payer != null;
+    var needFeeDelegation = gasPayer != null;
 
     Map b = await getBlock();
-    Map tx_body = build_tx_body([clause.clause], await getChainTag(),
+    Map txBody = buildTxBody([clause.clause], await getChainTag(),
         calc_blockRef(b["id"]), calc_nonce(),
-        gas: gas, feeDelegation: need_fee_delegation);
+        gas: gas, feeDelegation: needFeeDelegation);
 
     // Emulate the Tx
-    List eResponses = await emulateTx(caller, tx_body,
-        block: block, gas_payer: gas_payer = gas_payer);
+    List eResponses = await emulateTx(caller, txBody,
+        block: block, gasPayer: gasPayer = gasPayer);
     // Should only have one response, since we only have 1 clause
     assert(eResponses.length == 1);
 
@@ -265,21 +269,21 @@ class Connect {
   ///Only emulation happens.
   ///If the called functions has any return value, it will be included in "decoded" field
   Future<List<Map>> call_multi(String caller, List<Clause> clauses,
-      {int gas = 0, String? gas_payer, String block = "best"}) async {
-    bool need_fee_delegation = gas_payer != null;
+      {int gas = 0, String? gasPayer, String block = "best"}) async {
+    bool needFeeDelegation = gasPayer != null;
     // Build tx body
-    List tempClauses = [];
+    List<String> tempClauses = [];
     for (var clause in clauses) {
-      tempClauses.add(clause.clause);
+      tempClauses.add(json.encode(clause.clause));
     }
     Map b = await getBlock();
-    var tx_body = build_tx_body([tempClauses], await getChainTag(),
+    var txBody = buildTxBody([json.encode(tempClauses)], await getChainTag(),
         calc_blockRef(b["id"]), calc_nonce(),
-        gas: gas, feeDelegation: need_fee_delegation);
+        gas: gas, feeDelegation: needFeeDelegation);
 
     // Emulate the Tx
     var eResponses =
-        await emulateTx(caller, tx_body, block: block, gas_payer: gas_payer);
+        await emulateTx(caller, txBody, block: block, gasPayer: gasPayer);
     assert(eResponses.length == clauses.length);
 
 /*
@@ -298,65 +302,76 @@ class Connect {
   }
 
   Future<Map> transact(Wallet wallet, Contract contract, String func_name,
-      List func_params, String to,
+      List funcParams, String to,
       {BigInt? value, // Note: value is in Wei
       int expiration = 32,
       int gasPriceCoef = 0,
       int gas = 0,
       String? dependsOn, // ID of old Tx that this tx depends on, None or string
       bool force = false, // Force execute even if emulation failed
-      Wallet? gas_payer // fee delegation feature
+      Wallet? gasPayer // fee delegation feature
       }) async {
     value ??= BigInt.zero;
-    var clause =
-        this.clause(contract, func_name, func_params, to, value: value.toInt());
-    var need_fee_delegation = gas_payer != null;
+    Clause clause =
+        this.clause(contract, func_name, funcParams, to, value: value);
+    var needFeeDelegation = gasPayer != null;
     var b = await getBlock();
-    var tx_body = build_tx_body([clause.clause], await getChainTag(),
+    var txBody = buildTransaction([clause.getDevClause()], await getChainTag(),
         calc_blockRef(b["id"]), calc_nonce(),
         gasPriceCoef: gasPriceCoef,
         dependsOn: dependsOn = dependsOn,
         expiration: expiration,
         gas: gas,
-        feeDelegation: need_fee_delegation);
+        feeDelegation: needFeeDelegation);
 
-    var eResponses;
+    Future<List<Map>> eResponses;
     // Emulate the tx first.
-    if (!need_fee_delegation) {
-      eResponses = emulateTx(wallet.adressString, tx_body);
+    if (!needFeeDelegation) {
+      eResponses =
+          emulateTx(wallet.adressString, json.decode(txBody.toJsonString()));
     } else {
-      eResponses = emulateTx(wallet.adressString, tx_body,
-          gas_payer: gas_payer.adressString);
+      eResponses = emulateTx(
+          wallet.adressString, json.decode(txBody.toJsonString()),
+          gasPayer: gasPayer.adressString);
     }
 
-    if (any_emulate_failed(eResponses) && force == false) {
+    if (any_emulate_failed(await eResponses) && force == false) {
       throw Exception("");
     }
 
     // Get gas estimation from remote node
     // Calculate a safe gas for user
-    var vmGas = read_vm_gases(eResponses).sum;
-    var safeas = suggest_gas_for_tx(vmGas, tx_body);
-    if (gas < safeas) {
-      if (force == false) {
-        throw Exception("gas $gas < emulated gas $safeas");
+    var vmGas = read_vm_gases(await eResponses).sum;
+    print(vmGas);
+    var safeGas = suggest_gas_for_tx(vmGas, json.decode(txBody.toJsonString()));
+    if (gas < safeGas) {
+      if (gas != 0 && force == false) {
+        throw Exception("gas $gas < emulated gas $safeGas");
       }
     }
 
-    /* Fill out the gas for user
-        if not gas:
-            tx_body["gas"] = safeas
-*/
-    // Post it to the remote node
-    var encodedRaw;
-    if (!need_fee_delegation) {
-      encodedRaw = calcTxSignedEncoded(wallet, tx_body);
-    } else {
-      encodedRaw =
-          calc_tx_signed_with_fee_delegation(wallet, gas_payer, tx_body);
+    // Fill out the gas for user
+    if (gas == 0) {
+      print(safeGas);
+      txBody.gas.big = BigInt.from(safeGas);
     }
 
-    return postTransaction(encodedRaw);
+    // Post it to the remote node
+    /*
+    var encodedRaw;
+    if (!needFeeDelegation) {
+      encodedRaw = 
+      encodedRaw = calcTxSignedEncoded(wallet, json.decode(txBody.toJsonString()));
+    } else {
+      encodedRaw = calc_tx_signed_with_fee_delegation(wallet, gasPayer, json.decode(txBody.toJsonString()));
+    }
+    */
+    Uint8List h = blake2b256([txBody.encode()]);
+    Uint8List sig = sign(h, wallet.priv).serialize();
+    txBody.signature = sig;
+    String raw = '0x' + bytesToHex(txBody.encode());
+
+    return postTransaction(raw);
   }
 
   transactMulti(Wallet wallet, List<Clause> clauses,
@@ -370,7 +385,7 @@ class Connect {
     List eResponses;
     if (gasPayer != null) {
       eResponses = await call_multi(wallet.adressString, clauses,
-          gas: gas, gas_payer: gasPayer.adressString);
+          gas: gas, gasPayer: gasPayer.adressString);
     } else {
       eResponses = await call_multi(wallet.adressString, clauses, gas: gas);
     }
@@ -381,14 +396,14 @@ class Connect {
 
     bool needFeeDelegation = gasPayer != null;
     //parse clauses
-    List<Map> mapClauses = [];
+    List<String> mapClauses = [];
     for (var clause in clauses) {
-      mapClauses.add(clause.clause);
+      mapClauses.add(json.encode(clause.clause));
     }
     int chainTag = await getChainTag();
     var b = await getBlock();
     //Build body
-    var txBody = build_tx_body(mapClauses, chainTag, b['id'], calc_nonce(),
+    var txBody = buildTxBody(mapClauses, chainTag, b['id'], calc_nonce(),
         expiration: expiration,
         gas: gas,
         gasPriceCoef: gasPriceCoef,
@@ -427,8 +442,8 @@ class Connect {
     var data = "0x" + bytesToHex(dataBytes);
     var b = await getBlock();
     Map clause = {"to": null, "value": value, "data": data};
-    var txBody = build_tx_body(
-      [clause],
+    var txBody = buildTxBody(
+      [json.encode(clause)],
       await getChainTag(),
       calc_blockRef(b["id"]),
       calc_nonce(),
@@ -455,16 +470,43 @@ class Connect {
   ///Convenient function: do a pure VET transfer
   ///Parameters: to :  Address of the receiver, value : optional Amount of VET to transfer in Wei, by default 0
   Future<Map> transferVet(Wallet wallet, String to,
-      {int value = 0, Wallet? gas_payer}) async {
-    var clause = Clause(to, value: value);
+      {BigInt? value, Wallet? gasPayer}) async {
+    value ??= BigInt.zero;
+    var clause = dev.Clause(to, value.toRadixString(10), '0x');
+    Clause(to, value: value);
     var b = await getBlock();
-    var txBody = build_tx_body([clause.clause], await getChainTag(),
-        calc_blockRef(b["id"]), calc_nonce());
+    //TODO: emulate gas?
+    var gas = 21000;
+    var tx = buildTransaction(
+        [clause], await getChainTag(), calc_blockRef(b["id"]), calc_nonce(),
+        gas: gas);
 
-    // Post it to the remote node
-    var encodedRaw = calcTxSignedEncoded(wallet, txBody);
+    Uint8List h = blake2b256([tx.encode()]);
+    Uint8List sig = sign(h, wallet.priv).serialize();
+    tx.signature = sig;
+    String raw = '0x' + bytesToHex(tx.encode());
+    return postTransaction(raw);
+  }
 
-    return postTransaction(encodedRaw);
+  Future<Map> transferVtho(Wallet wallet, String to,
+      [BigInt? vthoInWei, Wallet? gasPayer]) {
+    vthoInWei ??= BigInt.zero;
+    const vthoAdress = '0x0000000000000000000000000000456E65726779';
+    Contract contract = Contract.fromJsonString(
+        File("assets/vtho_abi.json").readAsStringSync());
+    return transact(wallet, contract, 'transfer', [to, vthoInWei], vthoAdress,
+        gasPayer: gasPayer);
+  }
+
+  Future<Map> transferToken(
+      Wallet wallet, String to, String tokenContractAddress,
+      [BigInt? amountInWei, Wallet? gasPayer]) {
+    amountInWei ??= BigInt.zero;
+    Contract contract = Contract.fromJsonString(
+        File("assets/vtho_abi.json").readAsStringSync());
+    return transact(
+        wallet, contract, 'transfer', [to, amountInWei], tokenContractAddress,
+        gasPayer: gasPayer);
   }
 }
 
