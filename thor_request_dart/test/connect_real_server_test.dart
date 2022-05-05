@@ -114,6 +114,7 @@ void main() {
         '27196338e7d0b5e7bf1be1c0327c53a244a18ef0b102976980e341500f492425'));
     print(await connect.transferVtho(
         wallet, '0x5034aa590125b64023a0262112b98d72e3c8e40e'));
+        print(await connect.waitForTxReceipt('0x3c13b9db88babe6c3a74a42aec5202d6f664c9493a5a950f15ce166ac83006fe'));
   });
   test('transfer Token test', () async {
     Connect connect = Connect('https://testnet.veblocks.net');
@@ -124,6 +125,19 @@ void main() {
         '0x5034aa590125b64023a0262112b98d72e3c8e40e',
         '0x5034aa590125b64023a0262112b98d72e3c8e40e'));
   });
+
+    test('deploy contract', () async {
+    Connect connect = Connect('https://testnet.veblocks.net');
+    Wallet wallet = Wallet(hexToBytes(
+        '27196338e7d0b5e7bf1be1c0327c53a244a18ef0b102976980e341500f492425'));
+
+    BigInt value = BigInt.from(0);
+    var a = await connect.deploy(wallet, Contract.fromFilePath('assets/json_test/Vidar.json'), ['string', 'address'], ['Vidar', '0x17ACC76e4685AEA9d574705163E871b83e36697f'], BigInt.zero);
+    print(a);
+  });
+
+
+
 }
 
 

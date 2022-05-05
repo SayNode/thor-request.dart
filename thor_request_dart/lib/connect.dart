@@ -5,7 +5,6 @@ import 'package:collection/collection.dart';
 import 'package:http/http.dart' as http;
 import 'package:thor_devkit_dart/crypto/blake2b.dart';
 import 'package:thor_devkit_dart/crypto/secp256k1.dart';
-import 'package:thor_devkit_dart/transaction.dart';
 import 'package:thor_devkit_dart/utils.dart';
 import 'package:thor_devkit_dart/types/clause.dart' as dev;
 import 'package:thor_request_dart/clause.dart';
@@ -434,7 +433,7 @@ class Connect {
       throw Exception("HTTP error: ${res.statusCode} ${res.reasonPhrase}, $r");
     }
     Map allResponses = json.decode(res.body)[0]; // A list of responses
-
+    print(allResponses);
     return [injectRevertReason(allResponses)];
   }
 
@@ -691,28 +690,33 @@ class Connect {
   }
 
   ///Deploy a smart contract to blockchain
-  ///This is a single clause transaction.
+  ///This is a single clause transaction. [paramsTypes] Constructor params types,  [params] Constructor params, [value] send VET in Wei with constructor call
   Future<Map> deploy(Wallet wallet, Contract contract, List<String> paramsTypes,
       List params, BigInt value) async {
 //build transaction body
-    var dataBytes;
+    Uint8List dataBytes;
     if (paramsTypes.isEmpty) {
       dataBytes = contract.getBytecode();
     } else {
-      dataBytes = contract.getBytecode() + buildParams(paramsTypes, params);
+      dataBytes = Uint8List.fromList(contract.getBytecode() + buildParams(paramsTypes, params));
     }
     var data = "0x" + bytesToHex(dataBytes);
+
     var b = await getBlock();
-    Map clause = {"to": null, "value": value, "data": data};
-    var txBody = buildTxBody(
-      [json.encode(clause)],
+    Map clause = {"to": null, "value": value.toString(), "data": data};
+    var txBody = buildTransaction(
+      
+      [dev.Clause(null, value.toString(), data)],
       await getChainTag(),
       calc_blockRef(b["id"]),
       calc_nonce(),
       gas: 0, // We will estimate the gas later
     );
 
-    // We emulate it first.
+
+
+/*
+
     var eResponses = await emulateTx(wallet.adressString, txBody);
     if (any_emulate_failed(eResponses)) {
       throw Exception("Tx will revert: $eResponses");
@@ -725,8 +729,17 @@ class Connect {
     // Fill out the gas for user.
     txBody["gas"] = safeGas;
 
-    var encodedRaw = calcTxSignedEncoded(wallet, txBody);
-    return postTransaction(encodedRaw);
+    */
+
+    txBody.gas.big = BigInt.from(1000000);
+        Uint8List h = blake2b256([txBody.encode()]);
+    Uint8List sig = sign(h, wallet.priv).serialize();
+    txBody.signature = sig;
+    String raw = '0x' + bytesToHex(txBody.encode());
+
+    //var encodedRaw = calcTxSignedEncoded(wallet, txBody);
+    //print(encodedRaw);
+    return postTransaction(raw);
   }
 
   ///Convenient function: do a pure VET transfer
@@ -780,7 +793,6 @@ Map _beautify(Map response, Contract contract, String func_name) {
   }
 
   response["events"] = [
-    //FIXME:dont think this will work in dart, fix if it doesnt
     for (var item in response["events"]) {inject_decoded_event(item, contract)}
   ];
 

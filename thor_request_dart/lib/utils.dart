@@ -219,7 +219,6 @@ int calcGas(int vmGas, int intrinsicGas) {
 
 ///Build signed transaction from tx body
 Transaction calcTxSigned(Wallet wallet, Map txBody) {
-  print(txBody);
   Transaction tx = Transaction.fromJsonString(json.encode(txBody));
   //var message_hash = tx.getSigningHash(null);
   var msgHash = blake2b256([tx.encode()]);
