@@ -168,7 +168,7 @@ Map inject_decoded_return(
   }
   var function_obj = contract.getFunctionByName(func_name);
   emulate_response["decoded"] =
-      function_obj.decodeReturn(emulate_response["data"]);
+      function_obj.decodeReturnV1(emulate_response["data"]);
 
   return emulate_response;
 }
