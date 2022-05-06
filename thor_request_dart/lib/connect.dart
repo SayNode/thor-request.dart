@@ -319,7 +319,7 @@ class Connect {
     return balance;
   }
 
-  ///[block] enter block id or number, [expanded] returned block data should be expanded
+  ///Returns block as a Map. [block] enter block id or number, [expanded] returned block data should be expanded
   Future<Map> getBlock({String block = 'best', bool expanded = false}) async {
     var headers = {
       'accept': 'application/json',
@@ -333,7 +333,7 @@ class Connect {
     }
     var u = Uri.parse('$url/blocks/$block?expanded=$e');
     var res = await http.get(u, headers: headers);
-    Map map = jsonDecode(res.body);
+    Map map = json.decode(res.body);
     return map;
   }
 
@@ -344,7 +344,7 @@ class Connect {
     return int.parse(p.substring(p.length - 2), radix: 16);
   }
 
-  ///get transaction data of trnsaction with id [transactionId]
+  ///Get transaction data of transaction with id [transactionId]
   Future<Map> getTransaction(String transactionId) async {
     var headers = {
       'accept': 'application/json',
@@ -358,7 +358,7 @@ class Connect {
     return output;
   }
 
-  ///post a new transaction with raw payload [raw]
+  ///Post a new transaction with raw payload [raw]
   Future<Map> postTransaction(String raw) async {
     var headers = {
       'accept': 'application/json',
@@ -407,7 +407,6 @@ class Connect {
 
   ///stream output of best block
   Stream<Map> ticker() async* {
-    //var i = 1;
     Map oldBlock = await getBlock();
     while (true) {
       Map newBlock = await getBlock();
@@ -477,10 +476,10 @@ class Connect {
   ///Address of the contract.
   ///value : int, optional
   ///VET sent with the clause in Wei, by default 0
-  Clause clause(Contract contract, String func_name, List funcParams, String to,
+  RClause clause(Contract contract, String func_name, List funcParams, String to,
       {BigInt? value}) {
     value ??= BigInt.zero;
-    return Clause(to,
+    return RClause(to,
         contract: contract,
         functionName: func_name,
         functionParameters: funcParams,
@@ -529,7 +528,7 @@ class Connect {
   ///This WON'T create ANY change on blockchain.
   ///Only emulation happens.
   ///If the called functions has any return value, it will be included in "decoded" field
-  Future<List<Map>> call_multi(String caller, List<Clause> clauses,
+  Future<List<Map>> callMulti(String caller, List<RClause> clauses,
       {int gas = 0, String? gasPayer, String block = "best"}) async {
     bool needFeeDelegation = gasPayer != null;
     // Build tx body
@@ -546,19 +545,6 @@ class Connect {
     var eResponses =
         await emulateTx(caller, txBody, block: block, gasPayer: gasPayer);
     assert(eResponses.length == clauses.length);
-
-/*
-        // Try to beautify the responses
-        List _responses = [];
-        for response, clause in zip(eResponses, clauses):
-            // Failed response just ouput plain response
-            if is_emulate_failed(response):
-                _responses.append(response)
-                continue
-            // Success response inject beautified decoded data
-            _responses.append(
-                _beautify(response, clause.get_contract(), clause.get_func_name()))
-*/
     return eResponses;
   }
 
@@ -573,7 +559,7 @@ class Connect {
       Wallet? gasPayer // fee delegation feature
       }) async {
     value ??= BigInt.zero;
-    Clause clause =
+    RClause clause =
         this.clause(contract, func_name, funcParams, to, value: value);
     var needFeeDelegation = gasPayer != null;
     var b = await getBlock();
@@ -614,17 +600,6 @@ class Connect {
     if (gas == 0) {
       txBody.gas.big = BigInt.from(safeGas);
     }
-
-    // Post it to the remote node
-    /*
-    var encodedRaw;
-    if (!needFeeDelegation) {
-      encodedRaw = 
-      encodedRaw = calcTxSignedEncoded(wallet, json.decode(txBody.toJsonString()));
-    } else {
-      encodedRaw = calc_tx_signed_with_fee_delegation(wallet, gasPayer, json.decode(txBody.toJsonString()));
-    }
-    */
     Uint8List h = blake2b256([txBody.encode()]);
     Uint8List sig = sign(h, wallet.priv).serialize();
     txBody.signature = sig;
@@ -633,7 +608,7 @@ class Connect {
     return postTransaction(raw);
   }
 
-  transactMulti(Wallet wallet, List<Clause> clauses,
+  transactMulti(Wallet wallet, List<RClause> clauses,
       {int gasPriceCoef = 0,
       int gas = 0,
       String? dependsOn,
@@ -643,10 +618,10 @@ class Connect {
     //Emulate transaction first
     List eResponses;
     if (gasPayer != null) {
-      eResponses = await call_multi(wallet.adressString, clauses,
+      eResponses = await callMulti(wallet.adressString, clauses,
           gas: gas, gasPayer: gasPayer.adressString);
     } else {
-      eResponses = await call_multi(wallet.adressString, clauses, gas: gas);
+      eResponses = await callMulti(wallet.adressString, clauses, gas: gas);
     }
 
     if (any_emulate_failed(eResponses)) {
@@ -684,6 +659,18 @@ class Connect {
     } else {
       encodedRaw = calc_tx_signed_with_fee_delegation(wallet, gasPayer, txBody);
     }
+
+/*
+
+        // Fill out the gas for user
+    if (gas == 0) {
+      txBody.gas.big = BigInt.from(safeGas);
+    }
+    Uint8List h = blake2b256([txBody.encode()]);
+    Uint8List sig = sign(h, wallet.priv).serialize();
+    txBody.signature = sig;
+    String raw = '0x' + bytesToHex(txBody.encode());
+    */
     return postTransaction(encodedRaw);
   }
 
@@ -740,7 +727,7 @@ class Connect {
       {BigInt? value, Wallet? gasPayer}) async {
     value ??= BigInt.zero;
     var clause = dev.Clause(to, value.toRadixString(10), '0x');
-    Clause(to, value: value);
+    RClause(to, value: value);
     var b = await getBlock();
     //TODO: emulate gas?
     var gas = 21000;

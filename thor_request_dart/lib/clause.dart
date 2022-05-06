@@ -2,14 +2,14 @@ import 'package:thor_devkit_dart/utils.dart';
 import 'package:thor_request_dart/contract.dart';
 import 'package:thor_devkit_dart/types/clause.dart' as dev;
 
-class Clause {
+class RClause {
   late Map clause;
   String? functionName;
   late BigInt value;
   late bool isCall;
   Contract? contract;
 
-  Clause(String to,
+  RClause(String to,
       {this.contract,
       this.functionName,
       List? functionParameters,
