@@ -11,6 +11,7 @@ import 'package:thor_request_dart/clause.dart';
 import 'package:thor_request_dart/contract.dart';
 import 'package:thor_request_dart/utils.dart';
 import 'package:thor_request_dart/wallet.dart';
+
 const String vthoAbi = """
 {
     "abi": [
@@ -433,7 +434,6 @@ class Connect {
       throw Exception("HTTP error: ${res.statusCode} ${res.reasonPhrase}, $r");
     }
     Map allResponses = json.decode(res.body)[0]; // A list of responses
-    print(allResponses);
     return [injectRevertReason(allResponses)];
   }
 
@@ -603,7 +603,6 @@ class Connect {
     // Get gas estimation from remote node
     // Calculate a safe gas for user
     var vmGas = read_vm_gases(await eResponses).sum;
-    print(vmGas);
     var safeGas = suggest_gas_for_tx(vmGas, json.decode(txBody.toJsonString()));
     if (gas < safeGas) {
       if (gas != 0 && force == false) {
@@ -613,7 +612,6 @@ class Connect {
 
     // Fill out the gas for user
     if (gas == 0) {
-      print(safeGas);
       txBody.gas.big = BigInt.from(safeGas);
     }
 
@@ -698,14 +696,14 @@ class Connect {
     if (paramsTypes.isEmpty) {
       dataBytes = contract.getBytecode();
     } else {
-      dataBytes = Uint8List.fromList(contract.getBytecode() + buildParams(paramsTypes, params));
+      dataBytes = Uint8List.fromList(
+          contract.getBytecode() + buildParams(paramsTypes, params));
     }
     var data = "0x" + bytesToHex(dataBytes);
 
     var b = await getBlock();
     Map clause = {"to": null, "value": value.toString(), "data": data};
     var txBody = buildTransaction(
-      
       [dev.Clause(null, value.toString(), data)],
       await getChainTag(),
       calc_blockRef(b["id"]),
@@ -713,26 +711,20 @@ class Connect {
       gas: 0, // We will estimate the gas later
     );
 
-
-
-/*
-
-    var eResponses = await emulateTx(wallet.adressString, txBody);
+    var eResponses = await emulateTx(
+        wallet.adressString, json.decode(txBody.toJsonString()));
     if (any_emulate_failed(eResponses)) {
       throw Exception("Tx will revert: $eResponses");
     }
 
     // Get gas estimation from remote
     var vmGas = read_vm_gases(eResponses).sum;
-    var safeGas = suggest_gas_for_tx(vmGas, txBody);
+    var safeGas = suggest_gas_for_tx(vmGas, json.decode(txBody.toJsonString()));
 
     // Fill out the gas for user.
-    txBody["gas"] = safeGas;
+    txBody.gas.big = BigInt.from(safeGas);
 
-    */
-
-    txBody.gas.big = BigInt.from(1000000);
-        Uint8List h = blake2b256([txBody.encode()]);
+    Uint8List h = blake2b256([txBody.encode()]);
     Uint8List sig = sign(h, wallet.priv).serialize();
     txBody.signature = sig;
     String raw = '0x' + bytesToHex(txBody.encode());

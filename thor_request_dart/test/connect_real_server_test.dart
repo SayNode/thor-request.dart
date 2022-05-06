@@ -1,20 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thor_devkit_dart/crypto/blake2b.dart';
 import 'package:thor_devkit_dart/crypto/secp256k1.dart';
-import 'package:thor_devkit_dart/crypto/thor_signature.dart';
 import 'package:thor_devkit_dart/transaction.dart';
 import 'package:thor_devkit_dart/types/clause.dart';
 import 'package:thor_devkit_dart/utils.dart';
 import 'package:thor_request_dart/connect.dart';
 import 'package:thor_request_dart/contract.dart';
+import 'package:thor_request_dart/utils.dart';
 import 'package:thor_request_dart/wallet.dart';
 
 void main() {
-
   test('emulate', () async {
     Connect connect = Connect('https://testnet.veblocks.net');
     Map b = json.decode(File("assets/json_test/tx.json").readAsStringSync());
@@ -97,7 +95,7 @@ void main() {
     tx.signature = sig;
     String raw = '0x' + bytesToHex(tx.encode());
     Connect connect = Connect('https://testnet.veblocks.net');
-   // var a = await connect.postTransaction(raw);
+    // var a = await connect.postTransaction(raw);
     //print(a);
   });
 
@@ -105,8 +103,11 @@ void main() {
     Connect connect = Connect('https://testnet.veblocks.net');
     Wallet wallet = Wallet(hexToBytes(
         '7582be841ca040aa940fff6c05773129e135623e41acce3e0b8ba520dc1ae26a'));
-    print(await connect.transferVet(
-        wallet, '0x5034aa590125b64023a0262112b98d72e3c8e40e', value: BigInt.parse('37000000000000000000')),); 
+    print(
+      await connect.transferVet(
+          wallet, '0x5034aa590125b64023a0262112b98d72e3c8e40e',
+          value: BigInt.parse('37000000000000000000')),
+    );
   });
   test('transfer VTHO test', () async {
     Connect connect = Connect('https://testnet.veblocks.net');
@@ -114,7 +115,8 @@ void main() {
         '27196338e7d0b5e7bf1be1c0327c53a244a18ef0b102976980e341500f492425'));
     print(await connect.transferVtho(
         wallet, '0x5034aa590125b64023a0262112b98d72e3c8e40e'));
-        print(await connect.waitForTxReceipt('0x3c13b9db88babe6c3a74a42aec5202d6f664c9493a5a950f15ce166ac83006fe'));
+    print(await connect.waitForTxReceipt(
+        '0x3c13b9db88babe6c3a74a42aec5202d6f664c9493a5a950f15ce166ac83006fe'));
   });
   test('transfer Token test', () async {
     Connect connect = Connect('https://testnet.veblocks.net');
@@ -126,18 +128,30 @@ void main() {
         '0x5034aa590125b64023a0262112b98d72e3c8e40e'));
   });
 
-    test('deploy contract', () async {
+  test('deploy contract', () async {
     Connect connect = Connect('https://testnet.veblocks.net');
     Wallet wallet = Wallet(hexToBytes(
         '27196338e7d0b5e7bf1be1c0327c53a244a18ef0b102976980e341500f492425'));
 
     BigInt value = BigInt.from(0);
-    var a = await connect.deploy(wallet, Contract.fromFilePath('assets/json_test/Vidar.json'), ['string', 'address'], ['Vidar', '0x17ACC76e4685AEA9d574705163E871b83e36697f'], BigInt.zero);
+    var a = await connect.deploy(
+        wallet,
+        Contract.fromFilePath('assets/json_test/Vidar.json'),
+        ['string', 'address'],
+        ['Vidar', '0x17ACC76e4685AEA9d574705163E871b83e36697f'],
+        BigInt.zero);
     print(a);
   });
 
+  test('type encoding', () {
+    var a = buildParams(['uint32', 'bool'], [69, true]);
+    print(bytesToHex(a));
 
+  });
 
+    test('replay', () async{
+    Connect connect = Connect('https://testnet.veblocks.net');
+    var a = await connect.replayTx('0xb133e01c7eb242a045dc56db4e898b5e45fd68c7c5ee1d0649f1c4b84220258e');
+print(a);
+  });
 }
-
-

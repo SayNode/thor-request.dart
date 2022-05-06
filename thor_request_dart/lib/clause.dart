@@ -19,8 +19,6 @@ class Clause {
 
     if (isCall) {
       var f = contract!.getFunctionByName(functionName!);
-
-      //FIXME: can functionParameters be null?
       var data = f.encode(functionParameters!);
 
       clause = {
