@@ -36,7 +36,7 @@ Map calcEmulateTxBody(String caller, Map txBody, {String? gaspayer}) {
   var eClauses = [];
   for (var clause in txBody['clauses']) {
     if (clause is String) {
-      var c = json.decode(clause);
+      Map c = json.decode(clause);
 
       eClauses.add(
           {'to': c['to'], 'value': c['value'].toString(), 'data': c['data']});
@@ -242,8 +242,7 @@ String calcTxSignedEncoded(Wallet wallet, Map txBody) {
 }
 
 Transaction calc_tx_signed_with_fee_delegation(
-    Wallet caller, Wallet payer, Map tx_body) {
-  Transaction tx = Transaction.fromJsonString(json.encode(tx_body));
+    Wallet caller, Wallet payer, Transaction tx) {
   assert(tx.isDelegated() == true);
 
   var callerHash = tx.getSigningHash(null);

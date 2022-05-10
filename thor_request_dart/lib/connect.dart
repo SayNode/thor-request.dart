@@ -457,7 +457,6 @@ class Connect {
     return emulate(emulate_body, block: block);
   }
 
-//TODO: is this really needed? remove if not
   ///There are two types of calls:
   ///1) Function call on a smart contract
   /// Build a clause according to the function name and params.
@@ -476,7 +475,8 @@ class Connect {
   ///Address of the contract.
   ///value : int, optional
   ///VET sent with the clause in Wei, by default 0
-  RClause clause(Contract contract, String func_name, List funcParams, String to,
+  RClause clause(
+      Contract contract, String func_name, List funcParams, String to,
       {BigInt? value}) {
     value ??= BigInt.zero;
     return RClause(to,
@@ -528,18 +528,16 @@ class Connect {
   ///This WON'T create ANY change on blockchain.
   ///Only emulation happens.
   ///If the called functions has any return value, it will be included in "decoded" field
-  Future<List<Map>> callMulti(String caller, List<RClause> clauses,
+  Future<List<Map>> callMulti(String caller, List<dev.Clause> clauses,
       {int gas = 0, String? gasPayer, String block = "best"}) async {
     bool needFeeDelegation = gasPayer != null;
     // Build tx body
-    List<String> tempClauses = [];
-    for (var clause in clauses) {
-      tempClauses.add(json.encode(clause.clause));
-    }
     Map b = await getBlock();
-    var txBody = buildTxBody([json.encode(tempClauses)], await getChainTag(),
-        calc_blockRef(b["id"]), calc_nonce(),
+
+    var tx = buildTransaction(
+        clauses, await getChainTag(), calc_blockRef(b["id"]), calc_nonce(),
         gas: gas, feeDelegation: needFeeDelegation);
+    var txBody = json.decode(tx.toJsonString());
 
     // Emulate the Tx
     var eResponses =
@@ -600,6 +598,13 @@ class Connect {
     if (gas == 0) {
       txBody.gas.big = BigInt.from(safeGas);
     }
+
+    
+//post to remote node
+    if (needFeeDelegation) {
+      txBody = calc_tx_signed_with_fee_delegation(wallet, gasPayer, txBody);
+    }
+
     Uint8List h = blake2b256([txBody.encode()]);
     Uint8List sig = sign(h, wallet.priv).serialize();
     txBody.signature = sig;
@@ -608,13 +613,14 @@ class Connect {
     return postTransaction(raw);
   }
 
-  transactMulti(Wallet wallet, List<RClause> clauses,
+  transactMulti(Wallet wallet, List<dev.Clause> clauses,
       {int gasPriceCoef = 0,
       int gas = 0,
       String? dependsOn,
       int expiration = 32,
       bool force = false,
       Wallet? gasPayer}) async {
+    assert(clauses.isNotEmpty);
     //Emulate transaction first
     List eResponses;
     if (gasPayer != null) {
@@ -630,48 +636,43 @@ class Connect {
 
     bool needFeeDelegation = gasPayer != null;
     //parse clauses
-    List<String> mapClauses = [];
-    for (var clause in clauses) {
-      mapClauses.add(json.encode(clause.clause));
-    }
+
     int chainTag = await getChainTag();
     var b = await getBlock();
     //Build body
-    var txBody = buildTxBody(mapClauses, chainTag, b['id'], calc_nonce(),
+    var tx = buildTransaction(
+        clauses, chainTag, calc_blockRef(b["id"]), calc_nonce(),
         expiration: expiration,
         gas: gas,
         gasPriceCoef: gasPriceCoef,
         feeDelegation: needFeeDelegation);
-    //GEt gas estimation for remote node
-    //Calculate  gas safe for user
+    var txBody = json.decode(tx.toJsonString());
+    // Get gas estimation from remote node
+    // Calculate a safe gas for user
     var vmGas = read_vm_gases(eResponses).sum;
-    var safeGas = suggest_gas_for_tx(vmGas, txBody);
+    var safeGas = suggest_gas_for_tx(vmGas, json.decode(tx.toJsonString()));
     if (gas < safeGas) {
-      if (!force) {
-        throw Exception('gas $gas < emulated gas $safeGas');
+      if (gas != 0 && force == false) {
+        throw Exception("gas $gas < emulated gas $safeGas");
       }
     }
 
-//post to remote node
-    var encodedRaw;
-    if (!needFeeDelegation) {
-      encodedRaw = calcTxSignedEncoded(wallet, txBody);
-    } else {
-      encodedRaw = calc_tx_signed_with_fee_delegation(wallet, gasPayer, txBody);
-    }
-
-/*
-
-        // Fill out the gas for user
+    // Fill out the gas for user
     if (gas == 0) {
-      txBody.gas.big = BigInt.from(safeGas);
+      tx.gas.big = BigInt.from(safeGas);
     }
-    Uint8List h = blake2b256([txBody.encode()]);
+
+//post to remote node
+    if (needFeeDelegation) {
+      tx = calc_tx_signed_with_fee_delegation(wallet, gasPayer, txBody);
+    }
+
+    Uint8List h = blake2b256([tx.encode()]);
     Uint8List sig = sign(h, wallet.priv).serialize();
-    txBody.signature = sig;
-    String raw = '0x' + bytesToHex(txBody.encode());
-    */
-    return postTransaction(encodedRaw);
+    tx.signature = sig;
+    String raw = '0x' + bytesToHex(tx.encode());
+
+    return postTransaction(raw);
   }
 
   ///Deploy a smart contract to blockchain

@@ -181,9 +181,12 @@ void main() {
     Connect connect = Connect('https://testnet.veblocks.net');
         Wallet wallet = Wallet(hexToBytes(
         '27196338e7d0b5e7bf1be1c0327c53a244a18ef0b102976980e341500f492425'));
-        List<RClause> clauses =[];
+        List<Clause> clauses =[
+              Clause("0x0000000000000000000000000000000000000000",
+          "1000000000000000000", "0x"),
+    ];
     var a = await connect.transactMulti(wallet, clauses);
-    print(a);
+    expect(isHexString(a['id']), true);
   });
 
 
