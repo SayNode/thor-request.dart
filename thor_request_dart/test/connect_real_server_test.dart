@@ -161,6 +161,7 @@ void main() {
         ['string', 'address'],
         ['Vidar', '0x17ACC76e4685AEA9d574705163E871b83e36697f'],
         BigInt.zero);
+        print(a);
     expect(isHexString(a['id']), true);
   });
 
@@ -184,6 +185,9 @@ void main() {
         List<Clause> clauses =[
               Clause("0x0000000000000000000000000000000000000000",
           "1000000000000000000", "0x"),
+                        Clause("0x0000000000000000000000000000000000000000",
+          "1000000000000000000", "0x")
+
     ];
     var a = await connect.transactMulti(wallet, clauses);
     expect(isHexString(a['id']), true);

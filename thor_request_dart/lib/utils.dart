@@ -138,7 +138,7 @@ String calc_blockRef(String block_id) {
 int calc_nonce() {
   final random = Random.secure();
   final builder = BytesBuilder();
-  for (var i = 0; i < 8; ++i) {
+  for (var i = 0; i < 16; ++i) {
     builder.addByte(random.nextInt(256));
   }
   final bytes = builder.toBytes();

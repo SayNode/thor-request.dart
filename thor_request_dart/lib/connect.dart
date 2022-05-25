@@ -542,7 +542,7 @@ class Connect {
     // Emulate the Tx
     var eResponses =
         await emulateTx(caller, txBody, block: block, gasPayer: gasPayer);
-    assert(eResponses.length == clauses.length);
+    //assert(eResponses.length == clauses.length);
     return eResponses;
   }
 
@@ -666,7 +666,6 @@ class Connect {
     if (needFeeDelegation) {
       tx = calc_tx_signed_with_fee_delegation(wallet, gasPayer, txBody);
     }
-
     Uint8List h = blake2b256([tx.encode()]);
     Uint8List sig = sign(h, wallet.priv).serialize();
     tx.signature = sig;
@@ -737,6 +736,7 @@ class Connect {
         gas: gas);
 
     Uint8List h = blake2b256([tx.encode()]);
+    print(bytesToHex(tx.encode()));
     Uint8List sig = sign(h, wallet.priv).serialize();
     tx.signature = sig;
     String raw = '0x' + bytesToHex(tx.encode());
