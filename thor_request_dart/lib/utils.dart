@@ -14,7 +14,6 @@ import 'package:thor_request_dart/wallet.dart';
 
 import 'package:rlp/rlp.dart';
 
-
 Map injectRevertReason(Map emulateResponse) {
   if (emulateResponse["reverted"] == true && emulateResponse["data"] != "0x") {
     String encodedRevertReason = emulateResponse['data'].substring(138);
@@ -137,12 +136,13 @@ String calc_blockRef(String block_id) {
 ///Calculate a random number for nonce
 int calc_nonce() {
   final random = Random.secure();
-  final builder = BytesBuilder();
-  for (var i = 0; i < 16; ++i) {
-    builder.addByte(random.nextInt(256));
+  int length = 8;
+  String chars = '0123456789ABCDEF';
+  String hex = '';
+  while (length-- > 0) {
+    hex += chars[(random.nextInt(16)) | 0];
   }
-  final bytes = builder.toBytes();
-  return bytesToInt(bytes).toInt();
+  return int.parse(hex, radix: 16);
 }
 
 ///If a single clause emulation is failed
@@ -166,13 +166,19 @@ Map inject_decoded_return(
   if (emulate_response["reverted"] == true) {
     return emulate_response;
   }
-  if ((emulate_response["data"] != null) ||
+
+  if ((emulate_response["data"] == null) ||
       (emulate_response["data"] == "0x")) {
     return emulate_response;
   }
   var function_obj = contract.getFunctionByName(func_name);
-  emulate_response["decoded"] =
-      function_obj.decodeReturnV1(emulate_response["data"]);
+  var wrapperList = function_obj.decodeReturnV1(emulate_response["data"]);
+  Map decoded = {};
+  for (var obj in wrapperList) {
+    decoded[obj.name] = obj.value;
+  }
+
+  emulate_response["decoded"] = decoded;
 
   return emulate_response;
 }
@@ -272,7 +278,6 @@ Uint8List buildParams(List<String> types, List args) {
   for (var i = 0; i < types.length; i++) {
     out.addAll(encodeType(types[i], args[i]));
   }
-
 
   return Uint8List.fromList(out);
 }

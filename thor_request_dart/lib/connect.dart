@@ -542,7 +542,7 @@ class Connect {
     // Emulate the Tx
     var eResponses =
         await emulateTx(caller, txBody, block: block, gasPayer: gasPayer);
-    //assert(eResponses.length == clauses.length);
+    assert(eResponses.length == clauses.length);
     return eResponses;
   }
 
@@ -581,7 +581,7 @@ class Connect {
     }
 
     if (any_emulate_failed(await eResponses) && force == false) {
-      throw Exception("");
+      throw Exception(await eResponses);
     }
 
     // Get gas estimation from remote node
@@ -599,7 +599,6 @@ class Connect {
       txBody.gas.big = BigInt.from(safeGas);
     }
 
-    
 //post to remote node
     if (needFeeDelegation) {
       txBody = calc_tx_signed_with_fee_delegation(wallet, gasPayer, txBody);
@@ -630,7 +629,7 @@ class Connect {
       eResponses = await callMulti(wallet.adressString, clauses, gas: gas);
     }
 
-    if (any_emulate_failed(eResponses)) {
+    if (any_emulate_failed(eResponses)&& force == false) {
       throw Exception('Transaction will revert $eResponses');
     }
 
@@ -666,6 +665,7 @@ class Connect {
     if (needFeeDelegation) {
       tx = calc_tx_signed_with_fee_delegation(wallet, gasPayer, txBody);
     }
+
     Uint8List h = blake2b256([tx.encode()]);
     Uint8List sig = sign(h, wallet.priv).serialize();
     tx.signature = sig;
@@ -736,7 +736,6 @@ class Connect {
         gas: gas);
 
     Uint8List h = blake2b256([tx.encode()]);
-    print(bytesToHex(tx.encode()));
     Uint8List sig = sign(h, wallet.priv).serialize();
     tx.signature = sig;
     String raw = '0x' + bytesToHex(tx.encode());
@@ -760,6 +759,16 @@ class Connect {
     return transact(
         wallet, contract, 'transfer', [to, amountInWei], tokenContractAddress,
         gasPayer: gasPayer);
+  }
+
+  Future<BigInt> balanceOfToken(
+      String caller, String tokenContractAddress) async {
+    Contract contract = Contract.fromJsonString(vthoAbi);
+    var map = await call(
+        caller, contract, 'balanceOf', [caller], tokenContractAddress);
+    String b = map['data'];
+    BigInt balance = BigInt.parse(b.substring(2), radix: 16);
+    return balance;
   }
 }
 
