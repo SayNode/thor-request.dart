@@ -7,7 +7,6 @@ import 'package:thor_devkit_dart/crypto/thor_signature.dart';
 import 'package:thor_devkit_dart/utils.dart';
 
 class Wallet {
-//TODO: check if all this is needed as class parameter
   late Uint8List priv;
   late Uint8List pub;
   late Uint8List adressBytes;

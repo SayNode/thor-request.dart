@@ -93,7 +93,6 @@ void main() {
 
     Contract contract = Contract.fromFilePath(
         "assets/json_test/UniswapV2Pair.json");
-        print(ThorFunction(json.encode(functionMatcher)).function.toString());
     expect(contract.getFunctionByName('allowance').function.name, ThorFunction(json.encode(functionMatcher)).function.name);
 
 

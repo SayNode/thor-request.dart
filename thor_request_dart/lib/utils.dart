@@ -12,8 +12,6 @@ import 'package:thor_request_dart/codec.dart';
 import 'package:thor_request_dart/contract.dart';
 import 'package:thor_request_dart/wallet.dart';
 
-import 'package:rlp/rlp.dart';
-
 Map injectRevertReason(Map emulateResponse) {
   if (emulateResponse["reverted"] == true && emulateResponse["data"] != "0x") {
     String encodedRevertReason = emulateResponse['data'].substring(138);
@@ -125,16 +123,16 @@ Transaction buildTransaction(
 }
 
 ///Calculate a blockRef from a given block_id, id should starts with 0x
-String calc_blockRef(String block_id) {
-  if (!block_id.startsWith("0x")) {
+String calcBlockRef(String blockId) {
+  if (!blockId.startsWith("0x")) {
     throw Exception("block_id should start with 0x");
   }
 
-  return block_id.substring(0, 18);
+  return blockId.substring(0, 18);
 }
 
 ///Calculate a random number for nonce
-int calc_nonce() {
+int calcNonce() {
   final random = Random.secure();
   int length = 8;
   String chars = '0123456789ABCDEF';
@@ -146,14 +144,14 @@ int calc_nonce() {
 }
 
 ///If a single clause emulation is failed
-bool is_emulate_failed(emulate_response) {
-  return emulate_response["reverted"];
+bool isEmulateFailed(emulateResponse) {
+  return emulateResponse["reverted"];
 }
 
 ///Check the emulate response, if any tx reverted then it is a fail
-bool any_emulate_failed(List emulate_responses) {
-  for (var item in emulate_responses) {
-    if (is_emulate_failed(item)) {
+bool anyEmulateFailed(List emulateResponses) {
+  for (var item in emulateResponses) {
+    if (isEmulateFailed(item)) {
       return true;
     }
   }
@@ -161,46 +159,43 @@ bool any_emulate_failed(List emulate_responses) {
 }
 
 ///Inject 'decoded' return value into a emulate response
-Map inject_decoded_return(
-    Map emulate_response, Contract contract, String func_name) {
-  if (emulate_response["reverted"] == true) {
-    return emulate_response;
+Map injectDecodedReturn(
+    Map emulateResponse, Contract contract, String funcName) {
+  if (emulateResponse["reverted"] == true) {
+    return emulateResponse;
   }
 
-  if ((emulate_response["data"] == null) ||
-      (emulate_response["data"] == "0x")) {
-    return emulate_response;
+  if ((emulateResponse["data"] == null) ||
+      (emulateResponse["data"] == "0x")) {
+    return emulateResponse;
   }
-  var function_obj = contract.getFunctionByName(func_name);
-  var wrapperList = function_obj.decodeReturnV1(emulate_response["data"]);
+  var functionObj = contract.getFunctionByName(funcName);
+  var wrapperList = functionObj.decodeReturnV1(emulateResponse["data"]);
   Map decoded = {};
   for (var obj in wrapperList) {
     decoded[obj.name] = obj.value;
   }
 
-  emulate_response["decoded"] = decoded;
+  emulateResponse["decoded"] = decoded;
 
-  return emulate_response;
+  return emulateResponse;
 }
 
 ///Inject 'decoded' and 'name' into event
-Map inject_decoded_event(Map event_dict, Contract contract) {
-  var e_obj = contract.getEventBySignature(hexToBytes(event_dict["topics"][0]));
-  if (e_obj == null) {
-    return event_dict;
-  } // oops, event not found, cannot decode
+Map injectDecodedEvent(Map eventDict, Contract contract) {
+  var eObj = contract.getEventBySignature(hexToBytes(eventDict["topics"][0]));
 
   // otherwise can be decoded
-  event_dict["decoded"] = e_obj.decodeResults(
-    event_dict["data"],
-    event_dict["topics"],
+  eventDict["decoded"] = eObj.decodeResults(
+    eventDict["data"],
+    eventDict["topics"],
   );
-  event_dict["name"] = e_obj.event.name;
-  return event_dict;
+  eventDict["name"] = eObj.event.name;
+  return eventDict;
 }
 
 ///Extract vm gases from a batch of emulated executions.
-List<int> read_vm_gases(List emulatedResponses) {
+List<int> readVmGases(List emulatedResponses) {
   List<int> results = [];
   for (var item in emulatedResponses) {
     if (item["gasUsed"] is int) {
@@ -214,7 +209,7 @@ List<int> read_vm_gases(List emulatedResponses) {
 }
 
 ///Calculate the suggested gas for a transaction
-int suggest_gas_for_tx(int vmGas, Map txBody) {
+int suggestGasForTx(int vmGas, Map txBody) {
   Transaction tx = Transaction.fromJsonString(json.encode(txBody));
   var intrincisGas = tx.getIntrinsicGas();
   var supposedSafeGas = calcGas(vmGas, intrincisGas);
@@ -247,7 +242,7 @@ String calcTxSignedEncoded(Wallet wallet, Map txBody) {
   return txEncoded;
 }
 
-Transaction calc_tx_signed_with_fee_delegation(
+Transaction calcTxSignedWithFeeDelegation(
     Wallet caller, Wallet payer, Transaction tx) {
   assert(tx.isDelegated() == true);
 
@@ -266,7 +261,7 @@ Transaction calc_tx_signed_with_fee_delegation(
   return tx;
 }
 
-//TODO: return proper encoded data
+
 ///ABI encode params according to types
 Uint8List buildParams(List<String> types, List args) {
   if (types.length != args.length) {

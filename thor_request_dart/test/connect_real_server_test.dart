@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thor_devkit_dart/crypto/blake2b.dart';
@@ -8,7 +7,6 @@ import 'package:thor_devkit_dart/crypto/secp256k1.dart';
 import 'package:thor_devkit_dart/transaction.dart';
 import 'package:thor_devkit_dart/types/clause.dart';
 import 'package:thor_devkit_dart/utils.dart';
-import 'package:thor_request_dart/clause.dart';
 import 'package:thor_request_dart/connect.dart';
 import 'package:thor_request_dart/contract.dart';
 import 'package:thor_request_dart/utils.dart';
@@ -25,7 +23,6 @@ void main() {
 
   test('replayTx with reason', () async {
     Connect connect = Connect('https://testnet.veblocks.net');
-    Map b = json.decode(File("assets/json_test/tx.json").readAsStringSync());
 
     var a = await connect.replayTx(
         "0x1d05a502db56ba46ccd258a5696b9b78cd83de6d0d67f22b297f37e710a72bb5");
@@ -93,7 +90,6 @@ void main() {
       Clause("0x0000000000000000000000000000000000000000",
           "1000000000000000000", "0x"),
     ];
-    var blo = await connect.getBlock();
 
     //Blockref +1 before test
     Transaction tx = Transaction(39, "0x00634b0a00639804", "72000000", clauses,
@@ -153,15 +149,12 @@ void main() {
     Connect connect = Connect('https://testnet.veblocks.net');
     Wallet wallet = Wallet(hexToBytes(
         '27196338e7d0b5e7bf1be1c0327c53a244a18ef0b102976980e341500f492425'));
-
-    BigInt value = BigInt.from(0);
     var a = await connect.deploy(
         wallet,
         Contract.fromFilePath('assets/json_test/Vidar.json'),
         ['string', 'address'],
         ['Vidar', '0x17ACC76e4685AEA9d574705163E871b83e36697f'],
         BigInt.zero);
-        print(a);
     expect(isHexString(a['id']), true);
   });
 
@@ -169,13 +162,6 @@ void main() {
     var a = buildParams(['uint32', 'bool'], [69, true]);
     expect(bytesToHex(a),
         '00000000000000000000000000000000000000000000000000000000000000450000000000000000000000000000000000000000000000000000000000000001');
-  });
-
-  test('replay', () async {
-    Connect connect = Connect('https://testnet.veblocks.net');
-    var a = await connect.replayTx(
-        '0xb133e01c7eb242a045dc56db4e898b5e45fd68c7c5ee1d0649f1c4b84220258e');
-        print(a);
   });
 
     test('transact Multiple', () async {

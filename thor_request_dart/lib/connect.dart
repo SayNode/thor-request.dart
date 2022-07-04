@@ -288,10 +288,6 @@ class Connect {
       'accept': 'application/json',
     };
 
-    var params = {
-      'revision':
-          '0x003dc697f70205861a70fd3e52a24a542613b564bf6d8b7b4149c6b3ee6e015d',
-    };
     //var query = params.entries.map((p) => '${p.key}=${p.value}').join('&');
 
     var u = Uri.parse('$url/accounts/$address?revision=$block');
@@ -453,8 +449,8 @@ class Connect {
   ///Emulate the execution of a transaction.[adress] address of caller, [txBody] Tx body to be emulated, [block] Target at which block? by default "best",
   Future<List<Map>> emulateTx(String address, Map txBody,
       {String block = "best", String? gasPayer}) {
-    Map emulate_body = calcEmulateTxBody(address, txBody, gaspayer: gasPayer);
-    return emulate(emulate_body, block: block);
+    Map emulateBody = calcEmulateTxBody(address, txBody, gaspayer: gasPayer);
+    return emulate(emulateBody, block: block);
   }
 
   ///There are two types of calls:
@@ -476,12 +472,12 @@ class Connect {
   ///value : int, optional
   ///VET sent with the clause in Wei, by default 0
   RClause clause(
-      Contract contract, String func_name, List funcParams, String to,
+      Contract contract, String funcName, List funcParams, String to,
       {BigInt? value}) {
     value ??= BigInt.zero;
     return RClause(to,
         contract: contract,
-        functionName: func_name,
+        functionName: funcName,
         functionParameters: funcParams,
         value: value);
   }
@@ -492,7 +488,7 @@ class Connect {
   ///Only emulation happens.
   ///If function has any return value, it will be included in "decoded" field
 
-  Future<Map> call(String caller, Contract contract, String func_name,
+  Future<Map> call(String caller, Contract contract, String funcName,
       List funcParams, String to,
       {BigInt? value,
       int gas = 0, // Note: value is in Wei
@@ -500,13 +496,13 @@ class Connect {
       String block = "best" // Target at which block
       }) async {
     // Get the Clause object
-    var clause = this.clause(contract, func_name, funcParams, to, value: value);
+    var clause = this.clause(contract, funcName, funcParams, to, value: value);
     // Build tx body
     var needFeeDelegation = gasPayer != null;
 
     Map b = await getBlock();
     Map txBody = buildTxBody([clause.clause], await getChainTag(),
-        calc_blockRef(b["id"]), calc_nonce(),
+        calcBlockRef(b["id"]), calcNonce(),
         gas: gas, feeDelegation: needFeeDelegation);
 
     // Emulate the Tx
@@ -516,7 +512,7 @@ class Connect {
     assert(eResponses.length == 1);
 
     // If emulation failed just return the failed response.
-    if (any_emulate_failed(eResponses)) {
+    if (anyEmulateFailed(eResponses)) {
       return eResponses[0];
     }
 
@@ -535,7 +531,7 @@ class Connect {
     Map b = await getBlock();
 
     var tx = buildTransaction(
-        clauses, await getChainTag(), calc_blockRef(b["id"]), calc_nonce(),
+        clauses, await getChainTag(), calcBlockRef(b["id"]), calcNonce(),
         gas: gas, feeDelegation: needFeeDelegation);
     var txBody = json.decode(tx.toJsonString());
 
@@ -546,7 +542,7 @@ class Connect {
     return eResponses;
   }
 
-  Future<Map> transact(Wallet wallet, Contract contract, String func_name,
+  Future<Map> transact(Wallet wallet, Contract contract, String funcName,
       List funcParams, String to,
       {BigInt? value, // Note: value is in Wei
       int expiration = 32,
@@ -558,11 +554,11 @@ class Connect {
       }) async {
     value ??= BigInt.zero;
     RClause clause =
-        this.clause(contract, func_name, funcParams, to, value: value);
+        this.clause(contract, funcName, funcParams, to, value: value);
     var needFeeDelegation = gasPayer != null;
     var b = await getBlock();
     var txBody = buildTransaction([clause.getDevClause()], await getChainTag(),
-        calc_blockRef(b["id"]), calc_nonce(),
+        calcBlockRef(b["id"]), calcNonce(),
         gasPriceCoef: gasPriceCoef,
         dependsOn: dependsOn = dependsOn,
         expiration: expiration,
@@ -580,14 +576,14 @@ class Connect {
           gasPayer: gasPayer.adressString);
     }
 
-    if (any_emulate_failed(await eResponses) && force == false) {
+    if (anyEmulateFailed(await eResponses) && force == false) {
       throw Exception(await eResponses);
     }
 
     // Get gas estimation from remote node
     // Calculate a safe gas for user
-    var vmGas = read_vm_gases(await eResponses).sum;
-    var safeGas = suggest_gas_for_tx(vmGas, json.decode(txBody.toJsonString()));
+    var vmGas = readVmGases(await eResponses).sum;
+    var safeGas = suggestGasForTx(vmGas, json.decode(txBody.toJsonString()));
     if (gas < safeGas) {
       if (gas != 0 && force == false) {
         throw Exception("gas $gas < emulated gas $safeGas");
@@ -601,7 +597,7 @@ class Connect {
 
 //post to remote node
     if (needFeeDelegation) {
-      txBody = calc_tx_signed_with_fee_delegation(wallet, gasPayer, txBody);
+      txBody = calcTxSignedWithFeeDelegation(wallet, gasPayer, txBody);
     }
 
     Uint8List h = blake2b256([txBody.encode()]);
@@ -629,7 +625,7 @@ class Connect {
       eResponses = await callMulti(wallet.adressString, clauses, gas: gas);
     }
 
-    if (any_emulate_failed(eResponses)&& force == false) {
+    if (anyEmulateFailed(eResponses)&& force == false) {
       throw Exception('Transaction will revert $eResponses');
     }
 
@@ -640,7 +636,7 @@ class Connect {
     var b = await getBlock();
     //Build body
     var tx = buildTransaction(
-        clauses, chainTag, calc_blockRef(b["id"]), calc_nonce(),
+        clauses, chainTag, calcBlockRef(b["id"]), calcNonce(),
         expiration: expiration,
         gas: gas,
         gasPriceCoef: gasPriceCoef,
@@ -648,8 +644,8 @@ class Connect {
     var txBody = json.decode(tx.toJsonString());
     // Get gas estimation from remote node
     // Calculate a safe gas for user
-    var vmGas = read_vm_gases(eResponses).sum;
-    var safeGas = suggest_gas_for_tx(vmGas, json.decode(tx.toJsonString()));
+    var vmGas = readVmGases(eResponses).sum;
+    var safeGas = suggestGasForTx(vmGas, json.decode(tx.toJsonString()));
     if (gas < safeGas) {
       if (gas != 0 && force == false) {
         throw Exception("gas $gas < emulated gas $safeGas");
@@ -663,7 +659,7 @@ class Connect {
 
 //post to remote node
     if (needFeeDelegation) {
-      tx = calc_tx_signed_with_fee_delegation(wallet, gasPayer, txBody);
+      tx = calcTxSignedWithFeeDelegation(wallet, gasPayer, txBody);
     }
 
     Uint8List h = blake2b256([tx.encode()]);
@@ -689,24 +685,23 @@ class Connect {
     var data = "0x" + bytesToHex(dataBytes);
 
     var b = await getBlock();
-    Map clause = {"to": null, "value": value.toString(), "data": data};
     var txBody = buildTransaction(
       [dev.Clause(null, value.toString(), data)],
       await getChainTag(),
-      calc_blockRef(b["id"]),
-      calc_nonce(),
+      calcBlockRef(b["id"]),
+      calcNonce(),
       gas: 0, // We will estimate the gas later
     );
 
     var eResponses = await emulateTx(
         wallet.adressString, json.decode(txBody.toJsonString()));
-    if (any_emulate_failed(eResponses)) {
+    if (anyEmulateFailed(eResponses)) {
       throw Exception("Tx will revert: $eResponses");
     }
 
     // Get gas estimation from remote
-    var vmGas = read_vm_gases(eResponses).sum;
-    var safeGas = suggest_gas_for_tx(vmGas, json.decode(txBody.toJsonString()));
+    var vmGas = readVmGases(eResponses).sum;
+    var safeGas = suggestGasForTx(vmGas, json.decode(txBody.toJsonString()));
 
     // Fill out the gas for user.
     txBody.gas.big = BigInt.from(safeGas);
@@ -732,7 +727,7 @@ class Connect {
     //TODO: emulate gas?
     var gas = 21000;
     var tx = buildTransaction(
-        [clause], await getChainTag(), calc_blockRef(b["id"]), calc_nonce(),
+        [clause], await getChainTag(), calcBlockRef(b["id"]), calcNonce(),
         gas: gas);
 
     Uint8List h = blake2b256([tx.encode()]);
@@ -773,16 +768,16 @@ class Connect {
 }
 
 ///Beautify a emulation response dict, to include decoded return and decoded events
-Map _beautify(Map response, Contract contract, String func_name) {
+Map _beautify(Map response, Contract contract, String funcName) {
   //Decode return value
-  response = inject_decoded_return(response, contract, func_name);
+  response = injectDecodedReturn(response, contract, funcName);
   //Decode events (if any)
   if (response["events"].isEmpty) {
     return response;
   }
 
   response["events"] = [
-    for (var item in response["events"]) {inject_decoded_event(item, contract)}
+    for (var item in response["events"]) {injectDecodedEvent(item, contract)}
   ];
 
   return response;

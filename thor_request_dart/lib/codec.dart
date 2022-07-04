@@ -62,15 +62,16 @@ int sizeOfStaticType(String typeName) {
 
 Uint8List padLeft(Uint8List d, int alignBytes) {
   int padLength = alignBytes - d.length % alignBytes;
-  if(padLength == alignBytes)
+  if(padLength == alignBytes) {
     padLength = 0;
-  var filled = new List<int>.filled(padLength, 0);
+  }
+  var filled = List<int>.filled(padLength, 0);
   return Uint8List.fromList(Uint8List.fromList(filled) + d);
 }
 
 Uint8List padRight(Uint8List d, int alignBytes) {
   int padLength = alignBytes - d.length % alignBytes;
-  var filled = new List<int>.filled(padLength, 0);
+  var filled = List<int>.filled(padLength, 0);
   return Uint8List.fromList(d + Uint8List.fromList(filled));
 }
 
@@ -123,8 +124,9 @@ Uint8List encodeFixedBytes(Uint8List v, int length) {
 
   var pad0s = 32 - v.length;
   List<int> pads = [];
-  for(var i = 0; i < pad0s; i++)
+  for(var i = 0; i < pad0s; i++) {
     pads.add(0);
+  }
   return Uint8List.fromList(v + pads);
 }
 
@@ -132,8 +134,9 @@ Uint8List encodeBytes(Uint8List v) {
   var length = encodeInt(v.length);
   var pad0s = 32 - v.length % 32;
   List<int> pads = [];
-  for(var i = 0; i < pad0s; i++)
+  for(var i = 0; i < pad0s; i++) {
     pads.add(0);
+  }
   return Uint8List.fromList(length + v + pads);
 }
 
@@ -168,7 +171,7 @@ Uint8List encodeList(List<dynamic> l, String type) {
 
 Uint8List encodeFixedLengthList(List<dynamic> l, String type, int length) {
   if(l.length != length) {
-    throw Exception("incompatibal input list length for type ${type}");
+    throw Exception("incompatibal input list length for type $type");
   }
 
   if(isDynamicType(type)) {
@@ -190,8 +193,9 @@ Uint8List encodeFixedLengthList(List<dynamic> l, String type, int length) {
 }
 
 List<String> splitTypes(String typesStr) {
-  if(typesStr.length == 0)
+  if(typesStr.isEmpty) {
     return [];
+  }
   var currentStart = 0;
   List<String> subTypes = [];
   List<String> parentheses = [];
@@ -253,35 +257,37 @@ Uint8List encodeType(String type, dynamic data) {
   }
 
   if(type.startsWith('uint')) {
-    if(data is BigInt)
+    if(data is BigInt) {
       return encodeUint256(data);
-    else if(data is String) {
+    } else if(data is String) {
       String d = data.toLowerCase();
       if(d.startsWith('0x')) {
         return encodeUint256(BigInt.parse(d.substring(2), radix: 16));
-      } else if(d.contains(new RegExp(r'[a-f]'))) {
+      } else if(d.contains(RegExp(r'[a-f]'))) {
         return encodeUint256(BigInt.parse(d, radix: 16));
       } else {
         return encodeUint256(BigInt.parse(d));
       }
-    } else
+    } else {
       return encodeInt(data);
+    }
   }
 
   if(type.startsWith('int')) {
-    if(data is BigInt)
+    if(data is BigInt) {
       return encodeInt256(data);
-    else if(data is String) {
+    } else if(data is String) {
       String d = data.toLowerCase();
       if(d.startsWith('0x')) {
         return encodeInt256(BigInt.parse(d.substring(2), radix: 16));
-      } else if(d.contains(new RegExp(r'[a-f]'))) {
+      } else if(d.contains(RegExp(r'[a-f]'))) {
         return encodeInt256(BigInt.parse(d, radix: 16));
       } else {
         return encodeInt256(BigInt.parse(d));
       }
-    } else
+    } else {
       return encodeInt(data);
+    }
   }
 
   if(type.startsWith('bytes')) {
@@ -293,7 +299,7 @@ Uint8List encodeType(String type, dynamic data) {
     var types = type.substring(1, type.length - 1);
     var subtypes = splitTypes(types);
     if(subtypes.length != (data as List).length) {
-      throw Exception("incompatibal input length and contract abi arguments for ${type}");
+      throw Exception("incompatibal input length and contract abi arguments for $type");
     }
 
     List<int> headers = [];
@@ -301,10 +307,11 @@ Uint8List encodeType(String type, dynamic data) {
 
     int baseOffset = 0;
     for(var i = 0; i < subtypes.length; i++) {
-      if(isDynamicType(subtypes[i]))
+      if(isDynamicType(subtypes[i])) {
         baseOffset += 32;
-      else
+      } else {
         baseOffset += sizeOfStaticType(subtypes[i]);
+      }
     }
 
     for(var i = 0; i < subtypes.length; i++) {
