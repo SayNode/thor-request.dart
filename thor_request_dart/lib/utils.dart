@@ -172,9 +172,12 @@ Map injectDecodedReturn(
   var functionObj = contract.getFunctionByName(funcName);
   var wrapperList = functionObj.decodeReturnV1(emulateResponse["data"]);
   Map decoded = {};
-  for (var obj in wrapperList) {
-    decoded[obj.name] = obj.value;
+  for (var i = 0; i < wrapperList.length; i++) {
+    decoded[i] =  wrapperList[i].value;
   }
+  // for (var obj in wrapperList) {
+  //   decoded[obj.name] = obj.value;
+  // }
 
   emulateResponse["decoded"] = decoded;
 
