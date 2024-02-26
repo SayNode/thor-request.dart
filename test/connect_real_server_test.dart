@@ -184,4 +184,25 @@ void main() {
     var a = await connect.transactMulti(wallet, clauses);
     expect(isHexString(a['id']), true);
   });
+
+  test('Tuple test', () async {
+    Connect connect = Connect(nodeUrl);
+    Map contractMeta =
+        json.decode(File("assets/json_test/tuple_abi.json").readAsStringSync());
+
+    Contract contract = Contract(contractMeta);
+    var res = await connect.call(
+        '0x7567d83b7b8d80addcb281a71d54fc7b3364ffed',
+        contract,
+        'tuplesTesting',
+        [
+          [
+            '0xEd44d91A96b5202E2572B8f99Ce92f48080Ceb5A',
+            BigInt.zero,
+            BigInt.one
+          ]
+        ],
+        '0xEd44d91A96b5202E2572B8f99Ce92f48080Ceb5A');
+    print(res);
+  });
 }
