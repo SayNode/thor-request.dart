@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thor_devkit_dart/crypto/blake2b.dart';
 import 'package:thor_devkit_dart/crypto/secp256k1.dart';
@@ -13,8 +14,9 @@ import 'package:thor_request_dart/utils.dart';
 import 'package:thor_request_dart/wallet.dart';
 
 void main() {
+  String nodeUrl = 'http://testnet.vechain.blockorder.net';
   test('emulate', () async {
-    Connect connect = Connect('https://testnet.veblocks.net');
+    Connect connect = Connect(nodeUrl);
     Map b = json.decode(File("assets/json_test/tx.json").readAsStringSync());
     var a = await connect.emulate(b);
     expect(json.encode(a),
@@ -22,7 +24,7 @@ void main() {
   });
 
   test('replayTx with reason', () async {
-    Connect connect = Connect('https://testnet.veblocks.net');
+    Connect connect = Connect(nodeUrl);
 
     var a = await connect.replayTx(
         "0x1d05a502db56ba46ccd258a5696b9b78cd83de6d0d67f22b297f37e710a72bb5");
@@ -32,7 +34,7 @@ void main() {
   test('emulte transaction', () async {
     Map txBody =
         json.decode(File("assets/json_test/tx.json").readAsStringSync());
-    Connect connect = Connect('https://testnet.veblocks.net');
+    Connect connect = Connect(nodeUrl);
     var a = await connect.emulateTx(
         '0x5034aa590125b64023a0262112b98d72e3c8e40e', txBody);
     Map matcher = {
@@ -49,7 +51,7 @@ void main() {
   test('call', () async {
     Map contractMeta =
         json.decode(File("assets/json_test/VVET9.json").readAsStringSync());
-    Connect connect = Connect('https://testnet.veblocks.net');
+    Connect connect = Connect(nodeUrl);
     Contract contract = Contract(contractMeta);
 
     var a = await connect.call('0x7567d83b7b8d80addcb281a71d54fc7b3364ffed',
@@ -68,7 +70,7 @@ void main() {
   test('call address input', () async {
     Map contractMeta =
         json.decode(File("assets/json_test/VVET9.json").readAsStringSync());
-    Connect connect = Connect('https://testnet.veblocks.net');
+    Connect connect = Connect(nodeUrl);
     Contract contract = Contract(contractMeta);
 
     Map a = await connect.call(
@@ -85,7 +87,7 @@ void main() {
   });
 
   test('post transaction', () async {
-    Connect connect = Connect('https://testnet.veblocks.net');
+    Connect connect = Connect(nodeUrl);
     List<Clause> clauses = [
       Clause("0x0000000000000000000000000000000000000000",
           "1000000000000000000", "0x"),
@@ -106,7 +108,7 @@ void main() {
   });
 
   test('transfer VET test', () async {
-    Connect connect = Connect('https://testnet.veblocks.net');
+    Connect connect = Connect(nodeUrl);
     Wallet wallet = Wallet(hexToBytes(
         '7582be841ca040aa940fff6c05773129e135623e41acce3e0b8ba520dc1ae26a'));
     var a = await connect.transferVet(
@@ -116,7 +118,7 @@ void main() {
     expect(isHexString(a['id']), true);
   });
   test('transfer VTHO test', () async {
-    Connect connect = Connect('https://testnet.veblocks.net');
+    Connect connect = Connect(nodeUrl);
     Wallet wallet = Wallet(hexToBytes(
         '27196338e7d0b5e7bf1be1c0327c53a244a18ef0b102976980e341500f492425'));
     var a = await connect.transferVtho(
@@ -126,15 +128,20 @@ void main() {
   });
 
   test('recipt test', () async {
-    Connect connect = Connect('https://testnet.veblocks.net');
-    var a = await connect.waitForTxReceipt(
-        '0x3c13b9db88babe6c3a74a42aec5202d6f664c9493a5a950f15ce166ac83006fe');
+    Connect connect = Connect(nodeUrl);
+    Wallet wallet = Wallet(hexToBytes(
+        '7582be841ca040aa940fff6c05773129e135623e41acce3e0b8ba520dc1ae26a'));
+    var res = await connect.transferVet(
+        wallet, '0x5034aa590125b64023a0262112b98d72e3c8e40e',
+        value: BigInt.parse('37000000000000000000'));
+    var receiptRes = await connect.waitForTxReceipt(res['id']);
 
-    expect(a!['gasPayer'], '0x339fb3c438606519e2c75bbf531fb43a0f449a70');
+    expect(
+        receiptRes!['gasPayer'], '0xd989829d88b0ed1b06edf5c50174ecfa64f14a64');
   });
 
   test('transfer Token test', () async {
-    Connect connect = Connect('https://testnet.veblocks.net');
+    Connect connect = Connect(nodeUrl);
     Wallet wallet = Wallet(hexToBytes(
         '27196338e7d0b5e7bf1be1c0327c53a244a18ef0b102976980e341500f492425'));
     var a = await connect.transferToken(
@@ -146,7 +153,7 @@ void main() {
   });
 
   test('deploy contract', () async {
-    Connect connect = Connect('https://testnet.veblocks.net');
+    Connect connect = Connect(nodeUrl);
     Wallet wallet = Wallet(hexToBytes(
         '27196338e7d0b5e7bf1be1c0327c53a244a18ef0b102976980e341500f492425'));
     var a = await connect.deploy(
@@ -164,21 +171,17 @@ void main() {
         '00000000000000000000000000000000000000000000000000000000000000450000000000000000000000000000000000000000000000000000000000000001');
   });
 
-    test('transact Multiple', () async {
-    Connect connect = Connect('https://testnet.veblocks.net');
-        Wallet wallet = Wallet(hexToBytes(
+  test('transact Multiple', () async {
+    Connect connect = Connect(nodeUrl);
+    Wallet wallet = Wallet(hexToBytes(
         '27196338e7d0b5e7bf1be1c0327c53a244a18ef0b102976980e341500f492425'));
-        List<Clause> clauses =[
-              Clause("0x0000000000000000000000000000000000000000",
+    List<Clause> clauses = [
+      Clause("0x0000000000000000000000000000000000000000",
           "1000000000000000000", "0x"),
-                        Clause("0x0000000000000000000000000000000000000000",
+      Clause("0x0000000000000000000000000000000000000000",
           "1000000000000000000", "0x")
-
     ];
     var a = await connect.transactMulti(wallet, clauses);
     expect(isHexString(a['id']), true);
   });
-
-
-
 }

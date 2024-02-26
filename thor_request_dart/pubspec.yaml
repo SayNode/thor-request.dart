@@ -15,7 +15,8 @@ dependencies:
   http: ^1.1.0
   nock: ^1.2.0
   pointycastle: ^3.5.2
-  thor_devkit_dart: ^1.0.0
+  thor_devkit_dart:
+    path: C:/Users/SayNode/Documents/GitHub/SayNode/packages/own/thor-devkit.dart
 
 
 dev_dependencies:
