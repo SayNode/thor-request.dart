@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:collection/collection.dart';
 import 'package:http/http.dart' as http;
 import 'package:thor_devkit_dart/crypto/blake2b.dart';
 import 'package:thor_devkit_dart/crypto/secp256k1.dart';
-import 'package:thor_devkit_dart/utils.dart';
 import 'package:thor_devkit_dart/types/clause.dart' as dev;
+import 'package:thor_devkit_dart/utils.dart';
 import 'package:thor_request_dart/clause.dart';
 import 'package:thor_request_dart/contract.dart';
 import 'package:thor_request_dart/utils.dart';
@@ -380,7 +381,13 @@ class Connect {
     if (res.statusCode != 200) {
       throw Exception('http.post error: statusCode= ${res.statusCode}');
     }
-    Map output = jsonDecode(res.body);
+    Map output;
+    try {
+      output = jsonDecode(res.body);
+    } catch (_) {
+      return null;
+    }
+
     return output;
   }
 
@@ -471,8 +478,7 @@ class Connect {
   ///Address of the contract.
   ///value : int, optional
   ///VET sent with the clause in Wei, by default 0
-  RClause clause(
-      Contract contract, String funcName, List funcParams, String to,
+  RClause clause(Contract contract, String funcName, List funcParams, String to,
       {BigInt? value}) {
     value ??= BigInt.zero;
     return RClause(to,
@@ -625,7 +631,7 @@ class Connect {
       eResponses = await callMulti(wallet.adressString, clauses, gas: gas);
     }
 
-    if (anyEmulateFailed(eResponses)&& force == false) {
+    if (anyEmulateFailed(eResponses) && force == false) {
       throw Exception('Transaction will revert $eResponses');
     }
 

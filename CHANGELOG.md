@@ -9,3 +9,9 @@
 ## 1.0.2
 
 * Bumped up the version of http package to 1.1.0
+
+
+## 1.1.0
+
+* Added support for tuple types.
+* Bumped dependency versions.
